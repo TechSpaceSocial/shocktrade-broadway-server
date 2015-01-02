@@ -1,15 +1,14 @@
 package com.shocktrade.actors
 
 import java.text.SimpleDateFormat
-import java.util.Date
 
 import akka.actor.{Actor, ActorRef}
-import com.ldaniels528.broadway.server.etl.actors.FileReadingActor.EOF
-import com.ldaniels528.trifecta.io.avro.AvroConversion
-import com.shocktrade.actors.EodDataEnrichmentActor.EODHistoricalQuote
+import com.ldaniels528.broadway.core.Resources.ReadableResource
+import com.ldaniels528.broadway.server.etl.actors.FileReadingActor._
+import com.shocktrade.helpers.ConversionHelper._
 import org.slf4j.LoggerFactory
 
-import scala.util.{Failure, Success, Try}
+import scala.collection.concurrent.TrieMap
 
 /**
  * EODData.com Enrichment Actor
@@ -17,63 +16,47 @@ import scala.util.{Failure, Success, Try}
  */
 class EodDataEnrichmentActor(target: ActorRef) extends Actor {
   private lazy val logger = LoggerFactory.getLogger(getClass)
-  private implicit val sdf = new SimpleDateFormat("yyyyMMdd")
+  private val sdf = new SimpleDateFormat("yyyyMMdd")
+  private val processing = TrieMap[ReadableResource, Long]()
 
   override def receive = {
-    case EOF(resource) =>
-      logger.info(s"Resource $resource completed")
-    case sections: Array[String] =>
-      val quote = toHistoricalQuote(sections)
-      val builder = com.shocktrade.avro.EodDataRecord.newBuilder()
-      AvroConversion.copy(quote, builder)
-      target ! builder.build()
+    case OpeningFile(resource) =>
+      processing += resource -> System.currentTimeMillis()
+
+    case ClosingFile(resource) =>
+      processing.get(resource) foreach { startTime =>
+        logger.info(s"Resource $resource completed in ${System.currentTimeMillis() - startTime} msecs")
+        processing -= resource
+      }
+
+    case TextLine(lineNo, line, tokens) =>
+      // skip the first line
+      if (lineNo != 1) {
+        target ! toAvro(tokens)
+      }
+
     case message =>
       unhandled(message)
   }
 
   /**
-   * Transforms the given line into a historical quote
+   * Converts the given tokens into an Avro record
+   * @param tokens the given tokens
+   * @return an Avro record
    */
-  private def toHistoricalQuote(sections: Array[String])(implicit sdf: SimpleDateFormat) = {
-    val items = sections map (_.trim) map (s => if (s.length == 0) None else Some(s))
-    def item(index: Int) = if (items.length > index) items(index) else None
+  private def toAvro(tokens: Seq[String]) = {
+    val items = tokens map (_.trim) map (s => if (s.isEmpty) null else s)
+    def item(index: Int) = if (index < items.length) items(index) else null
 
-    EODHistoricalQuote(
-      item(0),
-      item(1) flatMap parseDate,
-      item(2) map (_.toDouble),
-      item(3) map (_.toDouble),
-      item(4) map (_.toDouble),
-      item(5) map (_.toDouble),
-      item(6) map (_.toLong))
+    val builder = com.shocktrade.avro.EodDataRecord.newBuilder()
+    builder.setSymbol(item(0))
+    builder.setTradeDate(item(1).asEPOC(sdf))
+    builder.setOpen(item(2).asDouble)
+    builder.setHigh(item(3).asDouble)
+    builder.setLow(item(4).asDouble)
+    builder.setClose(item(5).asDouble)
+    builder.setVolume(item(6).asLong)
+    builder.build()
   }
-
-  private def parseDate(dateString: String)(implicit sdf: SimpleDateFormat): Option[Date] = {
-    Try(sdf.parse(dateString)) match {
-      case Success(date) => Some(date)
-      case Failure(e) =>
-        logger.error(s"Failed to parse date '$dateString' (yyyyMMdd)")
-        None
-    }
-  }
-
-}
-
-/**
- * EODData.com Enrichment Actor Singleton
- * @author Lawrence Daniels <lawrence.daniels@gmail.com>
- */
-object EodDataEnrichmentActor {
-
-  /**
-   * Represents an End-Of-Day Historical Quote
-   */
-  case class EODHistoricalQuote(symbol: Option[String],
-                                tradeDate: Option[Date],
-                                open: Option[Double],
-                                high: Option[Double],
-                                low: Option[Double],
-                                close: Option[Double],
-                                volume: Option[Long])
 
 }
