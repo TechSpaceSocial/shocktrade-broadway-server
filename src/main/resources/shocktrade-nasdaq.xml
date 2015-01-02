@@ -1,0 +1,31 @@
+<?xml version="1.0" ?>
+<topology-config>
+
+    <topology id="EodDataImportTopology" class="com.shocktrade.topologies.EodDataImportTopology" />
+
+    <topology id="KeyStatsImportTopology" class="com.shocktrade.topologies.KeyStatsImportTopology" />
+
+    <topology id="QuoteImportTopology" class="com.shocktrade.topologies.StockQuoteImportTopology" />
+
+    <location id="CSVQuotes" path="/Users/ldaniels/broadway/incoming/csvQuotes">
+        <feed match="exact" name="AMEX.txt" topology-ref="QuoteImportTopology" />
+        <feed match="exact" name="NASDAQ.txt" topology-ref="QuoteImportTopology" />
+        <feed match="exact" name="NYSE.txt" topology-ref="QuoteImportTopology" />
+        <feed match="exact" name="OTCBB.txt" topology-ref="QuoteImportTopology" />
+    </location>
+
+    <location id="KeyStats" path="/Users/ldaniels/broadway/incoming/keyStats">
+        <feed match="exact" name="AMEX.txt" topology-ref="KeyStatsImportTopology" />
+        <feed match="exact" name="NASDAQ.txt" topology-ref="KeyStatsImportTopology" />
+        <feed match="exact" name="NYSE.txt" topology-ref="KeyStatsImportTopology" />
+        <feed match="exact" name="OTCBB.txt" topology-ref="KeyStatsImportTopology" />
+    </location>
+
+    <location id="EodData" path="/Users/ldaniels/broadway/incoming/tradingHistory">
+        <feed name="AMEX(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
+        <feed name="NASDAQ(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
+        <feed name="NYSE(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
+        <feed name="OTCBB(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
+    </location>
+
+</topology-config>
