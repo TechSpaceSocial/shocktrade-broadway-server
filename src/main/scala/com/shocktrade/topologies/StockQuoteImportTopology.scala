@@ -1,7 +1,7 @@
 package com.shocktrade.topologies
 
 import com.ldaniels528.broadway.server.etl.BroadwayTopology
-import com.ldaniels528.broadway.server.etl.actors.FileReadingActor.{Delimited, TextParse}
+import com.ldaniels528.broadway.server.etl.actors.FileReadingActor._
 import com.ldaniels528.broadway.server.etl.actors.{FileReadingActor, KafkaAvroPublishingActor}
 import com.shocktrade.actors.{KafkaConstants, StockQuoteLookupActor}
 
@@ -22,6 +22,6 @@ class StockQuoteImportTopology() extends BroadwayTopology("Stock Quote Import To
     val quoteLookup = addActor(new StockQuoteLookupActor(quotePublisher))
 
     // start the processing by submitting a request to the file reader actor
-    fileReader ! TextParse(resource, Delimited("\t"), quoteLookup)
+    fileReader ! CopyText(resource, quoteLookup, Option(Delimited("[\t]")))
   }
 }

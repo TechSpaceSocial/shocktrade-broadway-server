@@ -1,9 +1,9 @@
 package com.shocktrade.topologies
 
 import com.ldaniels528.broadway.server.etl.BroadwayTopology
-import com.ldaniels528.broadway.server.etl.actors.FileReadingActor.{Delimited, TextParse}
+import com.ldaniels528.broadway.server.etl.actors.FileReadingActor._
 import com.ldaniels528.broadway.server.etl.actors.{FileReadingActor, KafkaAvroPublishingActor}
-import com.shocktrade.actors.{KafkaConstants, StockQuoteLookupActor}
+import com.shocktrade.actors.{EodDataEnrichmentActor, KafkaConstants}
 
 /**
  * EODData.com Import Topology
@@ -19,9 +19,9 @@ class EodDataImportTopology() extends BroadwayTopology("EODData.com Import Topol
     val kafkaPublisher = addActor(new KafkaAvroPublishingActor(eodDataTopic, brokers))
 
     // create a EOD data transformation actor
-    val transformerActor = addActor(new StockQuoteLookupActor(kafkaPublisher))
+    val transformerActor = addActor(new EodDataEnrichmentActor(kafkaPublisher))
 
     // start the processing by submitting a request to the file reader actor
-    fileReader ! TextParse(resource, Delimited(","), transformerActor)
+    fileReader ! CopyText(resource, transformerActor, Option(Delimited("[,]")))
   }
 }

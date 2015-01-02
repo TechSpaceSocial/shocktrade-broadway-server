@@ -1,8 +1,8 @@
 package com.shocktrade.topologies
 
 import com.ldaniels528.broadway.server.etl.BroadwayTopology
-import com.ldaniels528.broadway.server.etl.actors.FileReadingActor.{Delimited, TextParse}
-import com.ldaniels528.broadway.server.etl.actors.{KafkaAvroPublishingActor, FileReadingActor}
+import com.ldaniels528.broadway.server.etl.actors.FileReadingActor._
+import com.ldaniels528.broadway.server.etl.actors.{FileReadingActor, KafkaAvroPublishingActor}
 import com.shocktrade.actors.{KafkaConstants, KeyStatisticsLookupActor}
 
 /**
@@ -22,6 +22,6 @@ class KeyStatsImportTopology() extends BroadwayTopology("Key Statistics Import T
     val keyStatsLookup = addActor(new KeyStatisticsLookupActor(keyStatsPublisher))
 
     // start the processing by submitting a request to the file reader actor
-    fileReader ! TextParse(resource, Delimited("\t"), keyStatsLookup)
+    fileReader ! CopyText(resource, keyStatsLookup, Option(Delimited("[\t]")))
   }
 }
