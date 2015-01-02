@@ -21,6 +21,7 @@ class EodDataEnrichmentActor(target: ActorRef) extends Actor {
 
   override def receive = {
     case EOF(resource) =>
+      logger.info(s"Resource $resource completed")
     case sections: Array[String] =>
       val quote = toHistoricalQuote(sections)
       val builder = com.shocktrade.avro.EodDataRecord.newBuilder()
