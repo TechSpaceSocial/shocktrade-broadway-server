@@ -22,10 +22,10 @@
     </location>
 
     <location id="EodData" path="/Users/ldaniels/broadway/incoming/tradingHistory">
-        <feed name="AMEX(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
-        <feed name="NASDAQ(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
-        <feed name="NYSE(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
-        <feed name="OTCBB(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
+        <feed name="AMEX_(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
+        <feed name="NASDAQ_(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
+        <feed name="NYSE_(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
+        <feed name="OTCBB_(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
     </location>
 
 </topology-config>
