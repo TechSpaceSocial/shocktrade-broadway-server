@@ -21,7 +21,7 @@ class EodDataEnrichmentActor(target: ActorRef) extends Actor {
 
   override def receive = {
     case OpeningFile(resource) =>
-      processing += resource -> System.currentTimeMillis()
+      processing(resource) = System.currentTimeMillis()
 
     case ClosingFile(resource) =>
       processing.get(resource) foreach { startTime =>
@@ -30,7 +30,7 @@ class EodDataEnrichmentActor(target: ActorRef) extends Actor {
       }
 
     case TextLine(lineNo, line, tokens) =>
-      // skip the first line
+      // skip the header line
       if (lineNo != 1) {
         target ! toAvro(tokens)
       }
