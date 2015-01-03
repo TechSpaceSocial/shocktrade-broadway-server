@@ -24,6 +24,6 @@ class StockQuoteImportTopology() extends BroadwayTopology("Stock Quote Import") 
     val quoteLookup = addActor(new StockQuoteLookupActor(quotePublisher))
 
     // start the processing by submitting a request to the file reader actor
-    fileReader ! CopyText(resource, quoteLookup, Option(Delimited("[\t]")))
+    fileReader ! CopyText(resource, quoteLookup, handler = Delimited("[\t]"))
   }
 }

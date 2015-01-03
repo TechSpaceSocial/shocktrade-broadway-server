@@ -24,6 +24,6 @@ class KeyStatsImportTopology() extends BroadwayTopology("Key Statistics Import")
     val keyStatsLookup = addActor(new KeyStatisticsLookupActor(keyStatsPublisher))
 
     // start the processing by submitting a request to the file reader actor
-    fileReader ! CopyText(resource, keyStatsLookup, Option(Delimited("[\t]")))
+    fileReader ! CopyText(resource, keyStatsLookup, handler = Delimited("[\t]"))
   }
 }

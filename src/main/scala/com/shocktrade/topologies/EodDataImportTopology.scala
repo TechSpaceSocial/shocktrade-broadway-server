@@ -24,6 +24,6 @@ class EodDataImportTopology() extends BroadwayTopology("EODData.com Import") wit
     val transformerActor = addActor(new EodDataEnrichmentActor(kafkaPublisher))
 
     // start the processing by submitting a request to the file reader actor
-    fileReader ! CopyText(resource, transformerActor, Option(Delimited("[,]")))
+    fileReader ! CopyText(resource, transformerActor, handler = Delimited("[,]"))
   }
 }
