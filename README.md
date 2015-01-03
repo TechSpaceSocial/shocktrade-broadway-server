@@ -1,7 +1,8 @@
 ShockTrade Server
 =================
-ShockTrade Server is the processing back-end of the ShockTrade.com web site. ShockTrade Server is being built atop of
-Broadway (https://github.com/ldaniels528/broadway) as a distributed Actor-based processing system.
+ShockTrade Server is the *replacement* processing back-end of the ShockTrade.com web site, which is currently implemented
+via Storm. ShockTrade Server is being built atop of Broadway (https://github.com/ldaniels528/broadway) as a distributed
+Actor-based processing system.
 
 ## The ShockTrade Server Topology
 

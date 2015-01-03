@@ -9,8 +9,7 @@ trait KafkaConstants {
   val keyStatsTopic = "shocktrade.keystats.yahoo.avro"
   val quotesTopic = "shocktrade.quotes.yahoo.avro"
 
-  val brokers = "dev501:9091,dev501:9092,dev501:9093,dev501:9094,dev501:9095,dev501:9096"
-
   val zkHost = "dev501:2181"
+  val brokers = "dev501:9091,dev501:9092,dev501:9093,dev501:9094,dev501:9095,dev501:9096"
 
 }
