@@ -3,7 +3,7 @@ package com.shocktrade.actors
 import java.text.SimpleDateFormat
 
 import akka.actor.{Actor, ActorRef}
-import com.ldaniels528.broadway.core.Resources.ReadableResource
+import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.server.etl.actors.FileReadingActor._
 import com.shocktrade.helpers.ConversionHelper._
 import org.slf4j.LoggerFactory

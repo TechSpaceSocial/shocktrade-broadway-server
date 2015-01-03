@@ -1,7 +1,7 @@
 package com.shocktrade.actors
 
 import akka.actor.{Actor, ActorRef}
-import com.ldaniels528.broadway.core.Resources.ReadableResource
+import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.server.etl.actors.FileReadingActor._
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.shocktrade.services.{YFStockQuoteService, YahooFinanceServices}
