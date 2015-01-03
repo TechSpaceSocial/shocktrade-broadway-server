@@ -3,8 +3,10 @@ package com.shocktrade.actors
 import java.lang.{Double => JDouble, Long => JLong}
 import java.text.SimpleDateFormat
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.Actor
 import com.ldaniels528.broadway.core.resources._
+import com.ldaniels528.broadway.server.etl.BroadwayTopology.BWxActorRef
+import com.ldaniels528.broadway.server.etl.BroadwayTopology.Implicits._
 import com.ldaniels528.broadway.server.etl.actors.FileReadingActor._
 import com.ldaniels528.trifecta.util.StringHelper._
 import com.shocktrade.helpers.ConversionHelper._
@@ -14,7 +16,7 @@ import com.shocktrade.helpers.ResourceTracker
  * EODData.com Enrichment Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class EodDataEnrichmentActor(target: ActorRef) extends Actor {
+class EodDataEnrichmentActor(target: BWxActorRef) extends Actor {
   private val sdf = new SimpleDateFormat("yyyyMMdd")
 
   override def receive = {
@@ -60,6 +62,6 @@ class EodDataEnrichmentActor(target: ActorRef) extends Actor {
    * @param name the given file name (e.g. "NASDAQ_20120206.txt")
    * @return an option of the stock exchange (e.g. "NASDAQ")
    */
-  private def extractExchange(name: String) = name.indexOptionOf("_") map (n => name.substring(0, n))
+  private def extractExchange(name: String) = name.indexOptionOf("_") map (name.substring(0, _))
 
 }
