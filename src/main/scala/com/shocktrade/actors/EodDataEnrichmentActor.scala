@@ -7,28 +7,21 @@ import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.server.etl.actors.FileReadingActor._
 import com.ldaniels528.trifecta.util.StringHelper._
 import com.shocktrade.helpers.ConversionHelper._
-import org.slf4j.LoggerFactory
-
-import scala.collection.concurrent.TrieMap
+import com.shocktrade.helpers.ResourceTracker
 
 /**
  * EODData.com Enrichment Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 class EodDataEnrichmentActor(target: ActorRef) extends Actor {
-  private lazy val logger = LoggerFactory.getLogger(getClass)
   private val sdf = new SimpleDateFormat("yyyyMMdd")
-  private val processing = TrieMap[ReadableResource, Long]()
 
   override def receive = {
     case OpeningFile(resource) =>
-      processing(resource) = System.currentTimeMillis()
+      ResourceTracker.start(resource)
 
     case ClosingFile(resource) =>
-      processing.get(resource) foreach { startTime =>
-        logger.info(s"Resource $resource completed in ${System.currentTimeMillis() - startTime} msecs")
-        processing -= resource
-      }
+      ResourceTracker.stop(resource)
 
     case TextLine(resource, lineNo, line, tokens) =>
       // skip the header line
@@ -61,6 +54,11 @@ class EodDataEnrichmentActor(target: ActorRef) extends Actor {
     builder.build()
   }
 
+  /**
+   * Extracts the stock exchange from the given file name
+   * @param name the given file name (e.g. "NASDAQ_20120206.txt")
+   * @return an option of the stock exchange (e.g. "NASDAQ")
+   */
   private def extractExchange(name: String) = name.indexOptionOf("_") map (n => name.substring(0, n))
 
 }
