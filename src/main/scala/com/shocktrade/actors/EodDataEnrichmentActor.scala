@@ -1,5 +1,6 @@
 package com.shocktrade.actors
 
+import java.lang.{Double => JDouble, Long => JLong}
 import java.text.SimpleDateFormat
 
 import akka.actor.{Actor, ActorRef}
@@ -39,19 +40,19 @@ class EodDataEnrichmentActor(target: ActorRef) extends Actor {
    * @return an Avro record
    */
   private def toAvro(resource: ReadableResource, tokens: Seq[String]) = {
-    val items = tokens map (_.trim) map (s => if (s.isEmpty) null else s)
-    def item(index: Int) = if (index < items.length) items(index) else null
+    val items = tokens map (_.trim) map (s => if (s.isEmpty) None else Some(s))
+    def item(index: Int) = if (index < items.length) items(index) else None
 
-    val builder = com.shocktrade.avro.EodDataRecord.newBuilder()
-    builder.setSymbol(item(0))
-    builder.setExchange(resource.getResourceName.flatMap(extractExchange).orNull)
-    builder.setTradeDate(item(1).asEPOC(sdf))
-    builder.setOpen(item(2).asDouble)
-    builder.setHigh(item(3).asDouble)
-    builder.setLow(item(4).asDouble)
-    builder.setClose(item(5).asDouble)
-    builder.setVolume(item(6).asLong)
-    builder.build()
+    com.shocktrade.avro.EodDataRecord.newBuilder()
+      .setSymbol(item(0).orNull)
+      .setExchange(resource.getResourceName.flatMap(extractExchange).orNull)
+      .setTradeDate(item(1).flatMap(_.asEPOC(sdf)).map(n => n: JLong).orNull)
+      .setOpen(item(2).flatMap(_.asDouble).map(n => n: JDouble).orNull)
+      .setHigh(item(3).flatMap(_.asDouble).map(n => n: JDouble).orNull)
+      .setLow(item(4).flatMap(_.asDouble).map(n => n: JDouble).orNull)
+      .setClose(item(5).flatMap(_.asDouble).map(n => n: JDouble).orNull)
+      .setVolume(item(6).flatMap(_.asLong).map(n => n: JLong).orNull)
+      .build()
   }
 
   /**

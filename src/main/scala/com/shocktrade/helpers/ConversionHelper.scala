@@ -20,30 +20,30 @@ object ConversionHelper {
    */
   implicit class StringConversion(val s: String) extends AnyVal {
 
-    def asEPOC(sdf: SimpleDateFormat): JLong = {
+    def asEPOC(sdf: SimpleDateFormat): Option[Long] = {
       Try(sdf.parse(s)) match {
-        case Success(date) => date.getTime
+        case Success(date) => Some(date.getTime)
         case Failure(e) =>
           logger.error(s"Error parsing date string '$s': ${e.getMessage}")
-          null
+          None
       }
     }
 
     def asDouble = {
       Try(s.toDouble) match {
-        case Success(value) => value: JDouble
+        case Success(value) => Option(value)
         case Failure(e) =>
           logger.error(s"Error parsing double string '$s': ${e.getMessage}")
-          null
+          None
       }
     }
 
     def asLong = {
       Try(s.toLong) match {
-        case Success(value) => value: JLong
+        case Success(value) => Option(value)
         case Failure(e) =>
           logger.error(s"Error parsing long string '$s': ${e.getMessage}")
-          null
+          None
       }
     }
 
