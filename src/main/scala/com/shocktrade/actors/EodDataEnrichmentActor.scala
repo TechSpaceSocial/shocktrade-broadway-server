@@ -5,6 +5,7 @@ import java.text.SimpleDateFormat
 import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.server.etl.actors.FileReadingActor._
+import com.ldaniels528.trifecta.util.StringHelper._
 import com.shocktrade.helpers.ConversionHelper._
 import org.slf4j.LoggerFactory
 
@@ -29,10 +30,10 @@ class EodDataEnrichmentActor(target: ActorRef) extends Actor {
         processing -= resource
       }
 
-    case TextLine(lineNo, line, tokens) =>
+    case TextLine(resource, lineNo, line, tokens) =>
       // skip the header line
       if (lineNo != 1) {
-        target ! toAvro(tokens)
+        target ! toAvro(resource, tokens)
       }
 
     case message =>
@@ -44,12 +45,13 @@ class EodDataEnrichmentActor(target: ActorRef) extends Actor {
    * @param tokens the given tokens
    * @return an Avro record
    */
-  private def toAvro(tokens: Seq[String]) = {
+  private def toAvro(resource: ReadableResource, tokens: Seq[String]) = {
     val items = tokens map (_.trim) map (s => if (s.isEmpty) null else s)
     def item(index: Int) = if (index < items.length) items(index) else null
 
     val builder = com.shocktrade.avro.EodDataRecord.newBuilder()
     builder.setSymbol(item(0))
+    builder.setExchange(resource.getResourceName.flatMap(extractExchange).orNull)
     builder.setTradeDate(item(1).asEPOC(sdf))
     builder.setOpen(item(2).asDouble)
     builder.setHigh(item(3).asDouble)
@@ -58,5 +60,7 @@ class EodDataEnrichmentActor(target: ActorRef) extends Actor {
     builder.setVolume(item(6).asLong)
     builder.build()
   }
+
+  private def extractExchange(name: String) = name.indexOptionOf("_") map (n => name.substring(0, n))
 
 }

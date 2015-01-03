@@ -31,7 +31,7 @@ class StockQuoteLookupActor(target: ActorRef)(implicit ec: ExecutionContext) ext
         processing -= resource
       }
 
-    case TextLine(lineNo, line, tokens) =>
+    case TextLine(resource, lineNo, line, tokens) =>
       tokens.headOption foreach { symbol =>
         YahooFinanceServices.getStockQuote(symbol, parameters) foreach { quote =>
           val builder = com.shocktrade.avro.CSVQuoteRecord.newBuilder()

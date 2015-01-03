@@ -28,7 +28,7 @@ class KeyStatisticsLookupActor(target: ActorRef)(implicit ec: ExecutionContext) 
         processing -= resource
       }
 
-    case TextLine(lineNo, line, tokens) =>
+    case TextLine(resource, lineNo, line, tokens) =>
       tokens.headOption foreach { symbol =>
         YahooFinanceServices.getKeyStatistics(symbol) foreach { keyStatistics =>
           val builder = com.shocktrade.avro.KeyStatisticsRecord.newBuilder()
