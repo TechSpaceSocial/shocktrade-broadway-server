@@ -1,9 +1,10 @@
 package com.shocktrade.topologies
 
 import akka.actor.Actor
-import com.ldaniels528.broadway.server.etl.BroadwayTopology
-import com.ldaniels528.broadway.server.etl.BroadwayTopology.BWxActorRef
-import com.ldaniels528.broadway.server.etl.BroadwayTopology.Implicits._
+import com.ldaniels528.broadway.BroadwayTopology
+import com.ldaniels528.broadway.core.actors.Actors._
+import com.ldaniels528.broadway.core.actors.Actors.Implicits._
+import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.kafka.KafkaMicroConsumer.{MessageData, _}
 import com.ldaniels528.trifecta.io.kafka.{Broker, KafkaMicroConsumer}
 import com.ldaniels528.trifecta.io.zookeeper.ZKProxy
@@ -19,19 +20,20 @@ import scala.concurrent.{ExecutionContext, Future}
  * Consumer Scan Topology
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class ConsumerScanTopology() extends BroadwayTopology("Consumer Scan") with KafkaConstants {
+class ConsumerScanTopology(config: ServerConfig) extends BroadwayTopology(config, "Consumer Scan") with KafkaConstants {
 
   onStart { resource =>
+    implicit val ec = config.system.dispatcher
     implicit val zk = ZKProxy(zkHost)
 
     // create the consumer group scanning actor
-    val scanActor = addActor(new ConsumerScanningActor())
+    val scanActor = config.addActor(new ConsumerScanningActor())
 
     // create the consumer group reset actor
-    val resetActor = addActor(new ConsumerResetActor(scanActor))
+    val resetActor = config.addActor(new ConsumerResetActor(scanActor))
 
     // create the partition coordinating actor
-    val coordinator = addActor(new ScanCoordinatingActor(resetActor))
+    val coordinator = config.addActor(new ScanCoordinatingActor(resetActor))
 
     // start the processing by submitting a request to the file reader actor
     coordinator ! "dev"
@@ -43,7 +45,7 @@ class ConsumerScanTopology() extends BroadwayTopology("Consumer Scan") with Kafk
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 object ConsumerScanTopology {
-  private[this] lazy val logger = LoggerFactory.getLogger(getClass)
+  private[this] val logger = LoggerFactory.getLogger(getClass)
 
   /**
    * Scan Coordinating Actor
