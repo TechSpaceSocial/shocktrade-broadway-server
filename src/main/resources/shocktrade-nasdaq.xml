@@ -1,11 +1,11 @@
 <?xml version="1.0" ?>
 <topology-config>
 
-    <topology id="EodDataImportTopology" class="com.shocktrade.topologies.EodDataImportTopology" />
+    <topology id="EodDataImportTopology" class="com.shocktrade.narratives.EodDataImportNarrative" />
 
-    <topology id="KeyStatsImportTopology" class="com.shocktrade.topologies.KeyStatsImportTopology" />
+    <topology id="KeyStatsImportTopology" class="com.shocktrade.narratives.KeyStatsImportNarrative" />
 
-    <topology id="QuoteImportTopology" class="com.shocktrade.topologies.StockQuoteImportTopology" />
+    <topology id="QuoteImportTopology" class="com.shocktrade.narratives.StockQuoteImportNarrative" />
 
     <location id="CSVQuotes" path="/Users/ldaniels/broadway/incoming/csvQuotes">
         <feed match="exact" name="AMEX.txt" topology-ref="QuoteImportTopology" />

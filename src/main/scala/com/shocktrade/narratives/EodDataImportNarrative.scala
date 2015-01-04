@@ -1,6 +1,6 @@
-package com.shocktrade.topologies
+package com.shocktrade.narratives
 
-import com.ldaniels528.broadway.BroadwayTopology
+import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.Actors.Implicits._
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited}
@@ -9,10 +9,10 @@ import com.ldaniels528.broadway.server.ServerConfig
 import com.shocktrade.actors.{EodDataEnrichmentActor, KafkaConstants}
 
 /**
- * EODData.com Import Topology
+ * EODData.com Import Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class EodDataImportTopology(config: ServerConfig) extends BroadwayTopology(config, "EODData.com Import") with KafkaConstants {
+class EodDataImportNarrative(config: ServerConfig) extends BroadwayNarrative(config, "EODData.com Import") with KafkaConstants {
 
   onStart { resource =>
     // create a file reader actor to read lines from the incoming resource

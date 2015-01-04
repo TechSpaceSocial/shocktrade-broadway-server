@@ -1,6 +1,6 @@
-package com.shocktrade.topologies
+package com.shocktrade.narratives
 
-import com.ldaniels528.broadway.BroadwayTopology
+import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.Actors.Implicits._
 import com.ldaniels528.broadway.core.actors.FileReadingActor._
 import com.ldaniels528.broadway.core.actors._
@@ -9,10 +9,10 @@ import com.ldaniels528.broadway.server.ServerConfig
 import com.shocktrade.actors.{KafkaConstants, StockQuoteLookupActor}
 
 /**
- * ShockTrade Stock Quote Import Topology
+ * ShockTrade Stock Quote Import Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class StockQuoteImportTopology(config: ServerConfig) extends BroadwayTopology(config, "Stock Quote Import") with KafkaConstants {
+class StockQuoteImportNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Stock Quote Import") with KafkaConstants {
 
   onStart { resource =>
 

@@ -1,26 +1,26 @@
-package com.shocktrade.topologies
+package com.shocktrade.narratives
 
 import akka.actor.Actor
-import com.ldaniels528.broadway.BroadwayTopology
-import com.ldaniels528.broadway.core.actors.Actors._
+import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.Actors.Implicits._
+import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.kafka.KafkaMicroConsumer.{MessageData, _}
 import com.ldaniels528.trifecta.io.kafka.{Broker, KafkaMicroConsumer}
 import com.ldaniels528.trifecta.io.zookeeper.ZKProxy
 import com.ldaniels528.trifecta.util.ResourceHelper._
 import com.shocktrade.actors.KafkaConstants
-import com.shocktrade.topologies.ConsumerScanTopology._
+import com.shocktrade.narratives.ConsumerScanNarrative._
 import kafka.common.TopicAndPartition
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
- * Consumer Scan Topology
+ * Consumer Scan Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class ConsumerScanTopology(config: ServerConfig) extends BroadwayTopology(config, "Consumer Scan") with KafkaConstants {
+class ConsumerScanNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Consumer Scan") with KafkaConstants {
 
   onStart { resource =>
     implicit val ec = config.system.dispatcher
@@ -41,10 +41,10 @@ class ConsumerScanTopology(config: ServerConfig) extends BroadwayTopology(config
 }
 
 /**
- * Consumer Scan Topology Singleton
+ * Consumer Scan Narrative Singleton
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-object ConsumerScanTopology {
+object ConsumerScanNarrative {
   private[this] val logger = LoggerFactory.getLogger(getClass)
 
   /**

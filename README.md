@@ -4,29 +4,32 @@ ShockTrade Server is the *replacement* processing back-end of the ShockTrade.com
 via Storm. ShockTrade Server is being built atop of Broadway (https://github.com/ldaniels528/broadway) as a distributed
 Actor-based processing system.
 
-## The ShockTrade Server Topology
+## The ShockTrade Server Narrative
 
-The proceeding example is a Broadway topology performs the following flow:
+The proceeding example is a Broadway narrative performs the following flow:
 
 * Extracts stock symbols from a tabbed-delimited file.
 * Retrieves stock quotes for each symbol.
 * Converts the stock quotes to <a href="http://avro.apache.org/" target="avro">Avro</a> records.
 * Publishes each Avro record to a Kafka topic (shocktrade.quotes.yahoo.avro)
 
-Below is the Broadway topology that implements the flow described above:
+Below is the Broadway narrative that implements the flow described above:
 
 ```scala
-class StockQuoteImportTopology() extends BroadwayTopology("Stock Quote Import") with KafkaConstants {
+class StockQuoteImportNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Stock Quote Import")
+  with KafkaConstants {
 
   onStart { resource =>
+    implicit val ec = config.system.dispatcher
+
     // create a file reader actor to read lines from the incoming resource
-    val fileReader = addActor(new FileReadingActor())
+    val fileReader = config.addActor(new FileReadingActor(config))
 
     // create a Kafka publishing actor for stock quotes
-    val quotePublisher = addActor(new KafkaAvroPublishingActor(quotesTopic, brokers))
+    val quotePublisher = config.addActor(new KafkaAvroPublishingActor(quotesTopic, brokers))
 
     // create a stock quote lookup actor
-    val quoteLookup = addActor(new StockQuoteLookupActor(quotePublisher))
+    val quoteLookup = config.addActor(new StockQuoteLookupActor(quotePublisher))
 
     // start the processing by submitting a request to the file reader actor
     fileReader ! CopyText(resource, quoteLookup, handler = Delimited("[\t]"))
@@ -78,20 +81,20 @@ trait KafkaConstants {
 }
 ```
 
-And an XML file to describe how files will be mapped to the topology:
+And an XML file to describe how files will be mapped to the narrative:
 
 ```xml
-<topology-config>
+<narrative-config>
 
-    <topology id="QuoteImportTopology" class="com.shocktrade.topologies.StockQuoteImportTopology" />
+    <narrative id="QuoteImportNarrative" class="com.shocktrade.topologies.StockQuoteImportNarrative" />
 
     <location id="CSVQuotes" path="/Users/ldaniels/broadway/incoming/csvQuotes">
-        <feed match="exact" name="AMEX.txt" topology-ref="QuoteImportTopology" />
-        <feed match="exact" name="NASDAQ.txt" topology-ref="QuoteImportTopology" />
-        <feed match="exact" name="NYSE.txt" topology-ref="QuoteImportTopology" />
-        <feed match="exact" name="OTCBB.txt" topology-ref="QuoteImportTopology" />
+        <feed match="exact" name="AMEX.txt" narrative-ref="QuoteImportNarrative" />
+        <feed match="exact" name="NASDAQ.txt" narrative-ref="QuoteImportNarrative" />
+        <feed match="exact" name="NYSE.txt" narrative-ref="QuoteImportNarrative" />
+        <feed match="exact" name="OTCBB.txt" narrative-ref="QuoteImportNarrative" />
     </location>
 
-</topology-config>
+</narrative-config>
 ```
 

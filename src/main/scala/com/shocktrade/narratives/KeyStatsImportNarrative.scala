@@ -1,6 +1,6 @@
-package com.shocktrade.topologies
+package com.shocktrade.narratives
 
-import com.ldaniels528.broadway.BroadwayTopology
+import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.Actors.Implicits._
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited}
@@ -9,10 +9,10 @@ import com.ldaniels528.broadway.server.ServerConfig
 import com.shocktrade.actors.{KafkaConstants, KeyStatisticsLookupActor}
 
 /**
- * ShockTrade Key Statistics Import Topology
+ * ShockTrade Key Statistics Import Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class KeyStatsImportTopology(config: ServerConfig) extends BroadwayTopology(config, "Key Statistics Import") with KafkaConstants {
+class KeyStatsImportNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Key Statistics Import") with KafkaConstants {
 
   onStart { resource =>
 
