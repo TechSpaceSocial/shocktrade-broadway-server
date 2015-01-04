@@ -19,7 +19,7 @@ class KeyStatsImportTopology(config: ServerConfig) extends BroadwayTopology(conf
     implicit val ec = config.system.dispatcher
 
     // create a file reader actor to read lines from the incoming resource
-    val fileReader = config.addActor(new FileReadingActor())
+    val fileReader = config.addActor(new FileReadingActor(config))
 
     // create a Kafka publishing actor for stock quotes
     val keyStatsPublisher = config.addActor(new KafkaAvroPublishingActor(keyStatsTopic, brokers))

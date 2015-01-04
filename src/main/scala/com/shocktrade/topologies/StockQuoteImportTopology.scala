@@ -19,7 +19,7 @@ class StockQuoteImportTopology(config: ServerConfig) extends BroadwayTopology(co
     implicit val ec = config.system.dispatcher
 
     // create a file reader actor to read lines from the incoming resource
-    val fileReader = config.addActor(new FileReadingActor())
+    val fileReader = config.addActor(new FileReadingActor(config))
 
     // create a Kafka publishing actor for stock quotes
     val quotePublisher = config.addActor(new KafkaAvroPublishingActor(quotesTopic, brokers))
