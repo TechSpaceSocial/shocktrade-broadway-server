@@ -1,10 +1,10 @@
 package com.shocktrade.topologies
 
+import com.ldaniels528.broadway.core.actors.FileReadingActor
+import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited}
+import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
 import com.ldaniels528.broadway.server.etl.BroadwayTopology
 import com.ldaniels528.broadway.server.etl.BroadwayTopology.Implicits._
-import com.ldaniels528.broadway.server.etl.actors.FileReadingActor
-import com.ldaniels528.broadway.server.etl.actors.FileReadingActor._
-import com.ldaniels528.broadway.server.etl.actors.kafka.avro.KafkaAvroPublishingActor
 import com.shocktrade.actors.{EodDataEnrichmentActor, KafkaConstants}
 
 /**
