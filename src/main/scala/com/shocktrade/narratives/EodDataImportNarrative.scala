@@ -44,7 +44,7 @@ with KafkaConstants {
   }))
 
   // let's throttle the messages flowing into Kafka
-  val throttler = addActor(new ThrottlingActor(throughputCalc, rateLimit = 250))
+  val throttler = addActor(new ThrottlingActor(throughputCalc, rateLimit = 250, enabled = true))
 
   // create a EOD data transformation actor
   val eodDataToAvroActor = addActor(new EodDataToAvroActor(throttler))
