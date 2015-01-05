@@ -22,16 +22,16 @@ import scala.concurrent.ExecutionContext
 class KeyStatsImportNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Key Statistics Import")
 with KafkaConstants {
 
+  // create a file reader actor to read lines from the incoming resource
+  val fileReader = addActor(new FileReadingActor(config))
+
+  // create a Kafka publishing actor for stock quotes
+  val keyStatsPublisher = addActor(new KafkaAvroPublishingActor(keyStatsTopic, brokers))
+
+  // create a stock quote lookup actor
+  val keyStatsLookup = addActor(new KeyStatisticsLookupActor(keyStatsPublisher))
+
   onStart { resource =>
-    // create a file reader actor to read lines from the incoming resource
-    val fileReader = addActor(new FileReadingActor(config))
-
-    // create a Kafka publishing actor for stock quotes
-    val keyStatsPublisher = addActor(new KafkaAvroPublishingActor(keyStatsTopic, brokers))
-
-    // create a stock quote lookup actor
-    val keyStatsLookup = addActor(new KeyStatisticsLookupActor(keyStatsPublisher))
-
     // start the processing by submitting a request to the file reader actor
     fileReader ! CopyText(resource, keyStatsLookup, handler = Delimited("[\t]"))
   }

@@ -10,7 +10,7 @@ import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor._
-import com.ldaniels528.broadway.core.actors.{FileReadingActor, ThrottlingActor}
+import com.ldaniels528.broadway.core.actors.{FileReadingActor, ThroughputCalculatingActor}
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.util.StringHelper._
@@ -24,20 +24,21 @@ import com.shocktrade.narratives.EodDataImportNarrative._
  */
 class EodDataImportNarrative(config: ServerConfig) extends BroadwayNarrative(config, "EOD Data Import")
 with KafkaConstants {
+  // create a file reader actor to read lines from the incoming resource
+  val fileReader = addActor(new FileReadingActor(config))
+
+  // create a Kafka publishing actor
+  val kafkaPublisher = addActor(new KafkaAvroPublishingActor(eodDataTopic, brokers))
+
+  // let's throttle the messages flowing into Kafka
+  //val proxy = addActor(new ThrottlingActor(kafkaPublisher, rateLimit = 100))
+
+  val proxy = addActor(new ThroughputCalculatingActor(label = "KafkaAvroPublishing", kafkaPublisher))
+
+  // create a EOD data transformation actor
+  val eodDataToAvroActor = addActor(new EodDataToAvroActor(proxy))
 
   onStart { resource =>
-    // create a file reader actor to read lines from the incoming resource
-    val fileReader = addActor(new FileReadingActor(config))
-
-    // create a Kafka publishing actor
-    val kafkaPublisher = addActor(new KafkaAvroPublishingActor(eodDataTopic, brokers))
-
-    // let's throttle the messages flowing into Kafka
-    val throttler = addActor(new ThrottlingActor(config, kafkaPublisher, rateLimit = 100))
-
-    // create a EOD data transformation actor
-    val eodDataToAvroActor = addActor(new EodDataToAvroActor(throttler))
-
     // start the processing by submitting a request to the file reader actor
     fileReader ! CopyText(resource, eodDataToAvroActor, handler = Delimited("[,]"))
   }

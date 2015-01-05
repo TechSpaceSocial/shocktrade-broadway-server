@@ -20,19 +20,18 @@ import scala.concurrent.{ExecutionContext, Future}
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 class ConsumerScanNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Consumer Scan") with KafkaConstants {
+  implicit val zk = ZKProxy(zkHost)
+
+  // create the consumer group scanning actor
+  val scanActor = addActor(new ConsumerScanningActor())
+
+  // create the consumer group reset actor
+  val resetActor = addActor(new ConsumerResetActor(scanActor))
+
+  // create the partition coordinating actor
+  val coordinator = addActor(new ScanCoordinatingActor(resetActor))
 
   onStart { resource =>
-    implicit val zk = ZKProxy(zkHost)
-
-    // create the consumer group scanning actor
-    val scanActor = addActor(new ConsumerScanningActor())
-
-    // create the consumer group reset actor
-    val resetActor = addActor(new ConsumerResetActor(scanActor))
-
-    // create the partition coordinating actor
-    val coordinator = addActor(new ScanCoordinatingActor(resetActor))
-
     // start the processing by submitting a request to the file reader actor
     coordinator ! "dev"
   }
