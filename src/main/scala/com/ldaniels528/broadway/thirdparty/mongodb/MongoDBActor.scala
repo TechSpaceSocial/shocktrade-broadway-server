@@ -11,11 +11,11 @@ import scala.collection.concurrent.TrieMap
  * MongoDB Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class MongoDBActor(databaseName: String, addresses: List[ServerAddress]) extends Actor {
+class MongoDBActor(databaseName: String, serverList: String) extends Actor {
   private val collections = TrieMap[String, MongoCollection]()
   private var conn_? : Option[MongoConnection] = None
 
-  override def preStart() = conn_? = Option(getConnection(addresses))
+  override def preStart() = conn_? = Option(getConnection( parseServerList(serverList)))
 
   override def postStop() {
     conn_?.foreach(_.close())
@@ -64,6 +64,16 @@ object MongoDBActor {
     MongoConnection(addresses, options)
   }
 
+  def parseServerList(serverList: String): List[ServerAddress] = {
+    serverList.split("[,]").toList map { server =>
+      server.split("[:]").toList match {
+        case host :: port :: Nil => new ServerAddress(host, port.toInt)
+        case s =>
+          throw new IllegalArgumentException(s"Illegal server address '$s', expected format 'host:port'")
+      }
+    }
+  }
+  
   case class Insert(collection: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
 
   case class Update(collection: String,

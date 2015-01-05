@@ -14,15 +14,15 @@ import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor.Upsert
 import com.ldaniels528.trifecta.util.OptionHelper._
 import com.mongodb.casbah.Imports.{DBObject => Q, _}
 import com.shocktrade.avro.CSVQuoteRecord
-import com.shocktrade.narratives.YFStockQuoteExportNarrative.StockQuoteTransformingActor
+import com.shocktrade.narratives.YFStockQuoteToMongoDBNarrative.StockQuoteTransformingActor
 import com.shocktrade.narratives.YFStockQuoteImportNarrative.StockQuoteLookupActor
 import org.slf4j.LoggerFactory
 
 /**
- * Yahoo! Finance Stock Quote Export Narrative
+ * Yahoo! Finance Stock Quote Export to MongoDB Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class YFStockQuoteExportNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Stock Quote Export")
+class YFStockQuoteToMongoDBNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Stock Quote Export")
 with KafkaConstants with MongoDBConstants {
   // create a MongoDB actor for persisting stock quotes
   val mongoActor = addActor(new MongoDBActor(ShockTradeDB, MongoDBServers))
@@ -47,7 +47,7 @@ with KafkaConstants with MongoDBConstants {
  * Yahoo! Finance Stock Quote Export Narrative Singleton
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-object YFStockQuoteExportNarrative extends MongoDBConstants {
+object YFStockQuoteToMongoDBNarrative extends MongoDBConstants {
   private[this] lazy val logger = LoggerFactory.getLogger(getClass)
 
   /**
@@ -55,7 +55,6 @@ object YFStockQuoteExportNarrative extends MongoDBConstants {
    * @author lawrence.daniels@gmail.com
    */
   class StockQuoteTransformingActor(output: BWxActorRef) extends Actor {
-
     override def receive = {
       case record: CSVQuoteRecord =>
         persistDocument(record)

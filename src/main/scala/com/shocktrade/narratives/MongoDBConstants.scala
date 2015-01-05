@@ -13,10 +13,6 @@ trait MongoDBConstants {
 
   val StockQuotes = "Stocks"
 
-  val MongoDBServers = List(
-    new ServerAddress("dev601", 27017),
-    new ServerAddress("dev602", 27017),
-    new ServerAddress("dev603", 27017)
-  )
+  val MongoDBServers = "dev528:2017,dev601:27017,dev602:27017,dev603:27017"
 
 }

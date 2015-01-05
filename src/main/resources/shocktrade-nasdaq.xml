@@ -5,9 +5,9 @@
 
     <narrative id="EodDataImportNarrative" class="com.shocktrade.narratives.EodDataImportNarrative" />
 
-    <narrative id="KeyStatsImportNarrative" class="com.shocktrade.narratives.KeyStatsImportNarrative" />
+    <narrative id="KeyStatsImportNarrative" class="com.shocktrade.narratives.YFKeyStatsImportNarrative" />
 
-    <narrative id="QuoteImportNarrative" class="com.shocktrade.narratives.StockQuoteImportNarrative" />
+    <narrative id="QuoteImportNarrative" class="com.shocktrade.narratives.YFStockQuoteImportNarrative" />
 
     <location id="Combiner" path="/Users/ldaniels/broadway/incoming/combine">
         <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative" />

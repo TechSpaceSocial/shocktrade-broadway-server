@@ -53,6 +53,8 @@ libraryDependencies ++= Seq(
   "com.twitter" %% "bijection-avro" % "0.7.1",
   "com.typesafe.akka" %% "akka-actor" % "2.3.8",
   "net.liftweb" %% "lift-json" % "3.0-M1",
+  "org.mongodb" % "casbah-commons_2.10" % "2.6.4",
+  "org.mongodb" % "casbah-core_2.10" % "2.6.4",
   "org.slf4j" % "slf4j-api" % "1.7.9",
   "org.slf4j" % "log4j-over-slf4j" % "1.7.9",
   "net.databinder.dispatch" %% "dispatch-core" % "0.11.2"
