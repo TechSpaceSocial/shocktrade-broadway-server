@@ -9,7 +9,6 @@ import com.ldaniels528.trifecta.io.kafka.KafkaMicroConsumer.{MessageData, _}
 import com.ldaniels528.trifecta.io.kafka.{Broker, KafkaMicroConsumer}
 import com.ldaniels528.trifecta.io.zookeeper.ZKProxy
 import com.ldaniels528.trifecta.util.ResourceHelper._
-import com.shocktrade.actors.KafkaConstants
 import com.shocktrade.narratives.ConsumerScanNarrative._
 import kafka.common.TopicAndPartition
 import org.slf4j.LoggerFactory
@@ -23,7 +22,6 @@ import scala.concurrent.{ExecutionContext, Future}
 class ConsumerScanNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Consumer Scan") with KafkaConstants {
 
   onStart { resource =>
-    implicit val ec = config.system.dispatcher
     implicit val zk = ZKProxy(zkHost)
 
     // create the consumer group scanning actor
