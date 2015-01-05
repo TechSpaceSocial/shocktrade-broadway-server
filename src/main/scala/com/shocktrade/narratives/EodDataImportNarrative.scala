@@ -9,6 +9,7 @@ import com.ldaniels528.broadway.core.actors.Actors.Implicits._
 import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
+import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor._
 import com.ldaniels528.broadway.core.actors.{FileReadingActor, ThrottlingActor}
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.server.ServerConfig
@@ -32,7 +33,7 @@ with KafkaConstants {
     val kafkaPublisher = addActor(new KafkaAvroPublishingActor(eodDataTopic, brokers))
 
     // let's throttle the messages flowing into Kafka
-    val throttler = addActor(new ThrottlingActor(config, kafkaPublisher, rateLimit = 20))
+    val throttler = addActor(new ThrottlingActor(config, kafkaPublisher, rateLimit = 100))
 
     // create a EOD data transformation actor
     val eodDataToAvroActor = addActor(new EodDataToAvroActor(throttler))
@@ -52,7 +53,7 @@ object EodDataImportNarrative {
    * EODData-to-Avro Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class EodDataToAvroActor(target: BWxActorRef) extends Actor {
+  class EodDataToAvroActor(kafkaActor: BWxActorRef) extends Actor {
     private val sdf = new SimpleDateFormat("yyyyMMdd")
 
     override def receive = {
@@ -65,7 +66,7 @@ object EodDataImportNarrative {
       case TextLine(resource, lineNo, line, tokens) =>
         // skip the header line
         if (lineNo != 1) {
-          target ! toAvro(resource, tokens)
+          kafkaActor ! PublishAvro(record = toAvro(resource, tokens))
         }
 
       case message =>
