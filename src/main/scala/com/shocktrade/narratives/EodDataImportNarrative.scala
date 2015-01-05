@@ -7,9 +7,9 @@ import akka.actor.Actor
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.Actors.Implicits._
 import com.ldaniels528.broadway.core.actors.Actors._
-import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
+import com.ldaniels528.broadway.core.actors.{FileReadingActor, ThrottlingActor}
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.util.StringHelper._
@@ -26,16 +26,19 @@ with KafkaConstants {
 
   onStart { resource =>
     // create a file reader actor to read lines from the incoming resource
-    val fileReader = config.addActor(new FileReadingActor(config))
+    val fileReader = addActor(new FileReadingActor(config))
 
     // create a Kafka publishing actor
-    val kafkaPublisher = config.addActor(new KafkaAvroPublishingActor(eodDataTopic, brokers))
+    val kafkaPublisher = addActor(new KafkaAvroPublishingActor(eodDataTopic, brokers))
+
+    // let's throttle the messages flowing into Kafka
+    val throttler = addActor(new ThrottlingActor(config, kafkaPublisher, rateLimit = 20))
 
     // create a EOD data transformation actor
-    val transformerActor = config.addActor(new EodDataEnrichmentActor(kafkaPublisher))
+    val eodDataToAvroActor = addActor(new EodDataToAvroActor(throttler))
 
     // start the processing by submitting a request to the file reader actor
-    fileReader ! CopyText(resource, transformerActor, handler = Delimited("[,]"))
+    fileReader ! CopyText(resource, eodDataToAvroActor, handler = Delimited("[,]"))
   }
 }
 
@@ -46,10 +49,10 @@ with KafkaConstants {
 object EodDataImportNarrative {
 
   /**
-   * EODData.com Enrichment Actor
+   * EODData-to-Avro Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class EodDataEnrichmentActor(target: BWxActorRef) extends Actor {
+  class EodDataToAvroActor(target: BWxActorRef) extends Actor {
     private val sdf = new SimpleDateFormat("yyyyMMdd")
 
     override def receive = {

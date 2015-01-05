@@ -1,31 +1,31 @@
 <?xml version="1.0" ?>
-<topology-config>
+<narrative-config>
 
-    <topology id="EodDataImportTopology" class="com.shocktrade.narratives.EodDataImportNarrative" />
+    <narrative id="EodDataImportNarrative" class="com.shocktrade.narratives.EodDataImportNarrative" />
 
-    <topology id="KeyStatsImportTopology" class="com.shocktrade.narratives.KeyStatsImportNarrative" />
+    <narrative id="KeyStatsImportNarrative" class="com.shocktrade.narratives.KeyStatsImportNarrative" />
 
-    <topology id="QuoteImportTopology" class="com.shocktrade.narratives.StockQuoteImportNarrative" />
+    <narrative id="QuoteImportNarrative" class="com.shocktrade.narratives.StockQuoteImportNarrative" />
 
     <location id="CSVQuotes" path="/Users/ldaniels/broadway/incoming/csvQuotes">
-        <feed match="exact" name="AMEX.txt" topology-ref="QuoteImportTopology" />
-        <feed match="exact" name="NASDAQ.txt" topology-ref="QuoteImportTopology" />
-        <feed match="exact" name="NYSE.txt" topology-ref="QuoteImportTopology" />
-        <feed match="exact" name="OTCBB.txt" topology-ref="QuoteImportTopology" />
+        <feed match="exact" name="AMEX.txt" narrative-ref="QuoteImportNarrative" />
+        <feed match="exact" name="NASDAQ.txt" narrative-ref="QuoteImportNarrative" />
+        <feed match="exact" name="NYSE.txt" narrative-ref="QuoteImportNarrative" />
+        <feed match="exact" name="OTCBB.txt" narrative-ref="QuoteImportNarrative" />
     </location>
 
     <location id="KeyStats" path="/Users/ldaniels/broadway/incoming/keyStats">
-        <feed match="exact" name="AMEX.txt" topology-ref="KeyStatsImportTopology" />
-        <feed match="exact" name="NASDAQ.txt" topology-ref="KeyStatsImportTopology" />
-        <feed match="exact" name="NYSE.txt" topology-ref="KeyStatsImportTopology" />
-        <feed match="exact" name="OTCBB.txt" topology-ref="KeyStatsImportTopology" />
+        <feed match="exact" name="AMEX.txt" narrative-ref="KeyStatsImportNarrative" />
+        <feed match="exact" name="NASDAQ.txt" narrative-ref="KeyStatsImportNarrative" />
+        <feed match="exact" name="NYSE.txt" narrative-ref="KeyStatsImportNarrative" />
+        <feed match="exact" name="OTCBB.txt" narrative-ref="KeyStatsImportNarrative" />
     </location>
 
     <location id="EodData" path="/Users/ldaniels/broadway/incoming/tradingHistory">
-        <feed name="AMEX_(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
-        <feed name="NASDAQ_(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
-        <feed name="NYSE_(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
-        <feed name="OTCBB_(.*)[.]txt" match="regex" topology-ref="EodDataImportTopology" />
+        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
+        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
+        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
+        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
     </location>
 
-</topology-config>
+</narrative-config>
