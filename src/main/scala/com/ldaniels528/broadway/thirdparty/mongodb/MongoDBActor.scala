@@ -1,6 +1,7 @@
 package com.ldaniels528.broadway.thirdparty.mongodb
 
 import akka.actor.Actor
+import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor._
 import com.mongodb.ServerAddress
 import com.mongodb.casbah.Imports._
 
@@ -10,7 +11,7 @@ import scala.collection.concurrent.TrieMap
  * MongoDB Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class MongoDBActor(databaseName: String, addresses: ServerAddress*) extends Actor {
+class MongoDBActor(databaseName: String, addresses: List[ServerAddress]) extends Actor {
   private val collections = TrieMap[String, MongoCollection]()
   private var conn_? : Option[MongoConnection] = None
 
@@ -51,7 +52,7 @@ object MongoDBActor {
   /**
    * Creates a new database connection
    */
-  def getConnection(addresses: Seq[ServerAddress]) = {
+  def getConnection(addresses: List[ServerAddress]) = {
     // create the options
     val options = new MongoOptions()
     options.connectionsPerHost = 100
@@ -60,7 +61,7 @@ object MongoDBActor {
     options.threadsAllowedToBlockForConnectionMultiplier = 50
 
     // create the connection
-    MongoConnection(addresses.toList, options)
+    MongoConnection(addresses, options)
   }
 
   case class Insert(collection: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
