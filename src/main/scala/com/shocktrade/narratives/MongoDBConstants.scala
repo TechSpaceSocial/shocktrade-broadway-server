@@ -1,7 +1,5 @@
 package com.shocktrade.narratives
 
-import com.mongodb.casbah.Imports._
-
 /**
  * MongoD BConstants
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
