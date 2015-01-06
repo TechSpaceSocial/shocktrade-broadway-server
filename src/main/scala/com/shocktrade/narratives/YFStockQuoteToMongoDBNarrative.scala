@@ -10,12 +10,12 @@ import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.CopyText
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor
-import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor.Upsert
+import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor.{Upsert, parseServerList}
 import com.ldaniels528.trifecta.util.OptionHelper._
 import com.mongodb.casbah.Imports.{DBObject => Q, _}
 import com.shocktrade.avro.CSVQuoteRecord
-import com.shocktrade.narratives.YFStockQuoteToMongoDBNarrative.StockQuoteTransformingActor
 import com.shocktrade.narratives.YFStockQuoteImportNarrative.StockQuoteLookupActor
+import com.shocktrade.narratives.YFStockQuoteToMongoDBNarrative.StockQuoteTransformingActor
 import org.slf4j.LoggerFactory
 
 /**
@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory
 class YFStockQuoteToMongoDBNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Stock Quote Export")
 with KafkaConstants with MongoDBConstants {
   // create a MongoDB actor for persisting stock quotes
-  val mongoActor = addActor(new MongoDBActor(ShockTradeDB, MongoDBServers))
+  val mongoActor = addActor(MongoDBActor(parseServerList(MongoDBServers), ShockTradeDB))
 
   // stock quote to MongoDB document transformer
   val transformer = addActor(new StockQuoteTransformingActor(mongoActor))
@@ -54,7 +54,7 @@ object YFStockQuoteToMongoDBNarrative extends MongoDBConstants {
    * Stock Quote Transforming Actor
    * @author lawrence.daniels@gmail.com
    */
-  class StockQuoteTransformingActor(output: BWxActorRef) extends Actor {
+  class StockQuoteTransformingActor(recipient: BWxActorRef) extends Actor {
     override def receive = {
       case record: CSVQuoteRecord =>
         persistDocument(record)
@@ -65,41 +65,42 @@ object YFStockQuoteToMongoDBNarrative extends MongoDBConstants {
     }
 
     private def persistDocument(record: CSVQuoteRecord) = {
-      import record._
-      val theSymbol = Option(getNewSymbol) ?? Option(getOldSymbol)
+      val newSymbol = Option(record.getNewSymbol)
+      val oldSymbol = Option(record.getOldSymbol)
+      val theSymbol = newSymbol ?? oldSymbol
 
-      output ! Upsert(
-        collection = StockQuotes,
+      recipient ! Upsert(
+        StockQuotes,
         query = Q("symbol" -> theSymbol),
         doc = $set(
-          "lastTrade" -> getLastTrade,
-          "tradeDate" -> getTradeDate,
-          "tradeDateTime" -> getTradeDateTime,
-          "ask" -> getAsk,
-          "bid" -> getBid,
-          "prevClose" -> getPrevClose,
-          "open" -> getOpen,
-          "close" -> getClose,
-          "change" -> getChange,
-          "changePct" -> getChangePct,
-          "high" -> getHigh,
-          "low" -> getLow,
-          "spread" -> computeSpread(Option(getHigh), Option(getLow)),
-          "volume" -> getVolume,
+          "lastTrade" -> record.getLastTrade,
+          "tradeDate" -> record.getTradeDate,
+          "tradeDateTime" -> record.getTradeDateTime,
+          "ask" -> record.getAsk,
+          "bid" -> record.getBid,
+          "prevClose" -> record.getPrevClose,
+          "open" -> record.getOpen,
+          "close" -> record.getClose,
+          "change" -> record.getChange,
+          "changePct" -> record.getChangePct,
+          "high" -> record.getHigh,
+          "low" -> record.getLow,
+          "spread" -> computeSpread(Option(record.getHigh), Option(record.getLow)),
+          "volume" -> record.getVolume,
 
           // classification fields
           "assetType" -> "Common Stock",
           "assetClass" -> "Equity",
 
           // administrative fields
-          "yfDynRespTimeMsec" -> getResponseTimeMsec,
+          "yfDynRespTimeMsec" -> record.getResponseTimeMsec,
           "yfDynLastUpdated" -> new Date(),
           "lastUpdated" -> new Date()))
 
       // if the symbol was changed  update the old record
-      if (Option(getNewSymbol).isDefined) {
-        output ! Upsert(StockQuotes, query = Q("symbol" -> getOldSymbol), doc = Q("symbol" -> getOldSymbol))
-        output ! Upsert(StockQuotes, query = Q("symbol" -> getNewSymbol), doc = $set("oldSymbol" -> getOldSymbol))
+      newSymbol.foreach { symbol =>
+        recipient ! Upsert(StockQuotes, query = Q("symbol" -> oldSymbol), doc = Q("symbol" -> oldSymbol))
+        recipient ! Upsert(StockQuotes, query = Q("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
       }
     }
 

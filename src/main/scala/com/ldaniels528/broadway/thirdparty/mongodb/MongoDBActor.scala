@@ -5,21 +5,20 @@ import com.ldaniels528.broadway.core.actors.Actors.BWxActorRef
 import com.ldaniels528.broadway.core.actors.Actors.Implicits._
 import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor._
 import com.mongodb.ServerAddress
-import com.mongodb.casbah.Imports._
+import com.mongodb.casbah.Imports.{DBObject, DBObject => Q, _}
 
 import scala.collection.concurrent.TrieMap
 
 /**
- * The MongoDB Actor is capable of executing `find`, `findOne`, `insert`, `update`, and `upsert` commands
- * against a MongoDB server instance. NOTE: `find` and `findOne` queries require an actor a a recipient for retrieved
- * records.
+ * The MongoDB Actor is capable of executing `find`, `findOne`, `insert`, `update`, and `upsert` commands against a
+ * MongoDB server instance. NOTE: `find` and `findOne` queries require an actor a a recipient for retrieved records.
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class MongoDBActor(databaseName: String, serverList: String) extends Actor {
+class MongoDBActor(client: () => MongoClient, databaseName: String) extends Actor {
   private val collections = TrieMap[String, MongoCollection]()
-  private var conn_? : Option[MongoConnection] = None
+  private var conn_? : Option[MongoClient] = None
 
-  override def preStart() = conn_? = Option(getConnection(parseServerList(serverList)))
+  override def preStart() = conn_? = Option(client())
 
   override def postStop() {
     conn_?.foreach(_.close())
@@ -27,29 +26,36 @@ class MongoDBActor(databaseName: String, serverList: String) extends Actor {
   }
 
   override def receive = {
-    case Find(collection, query, fields, recipient) =>
-      val mc = getCollection(collection)
-      mc.foreach(_.find(query, fields) foreach { o =>
-        recipient ! MongoResult(o)
-      })
+    case Find(recipient, name, query, fields) =>
+      getCollection(name).foreach(_.find(query, fields) foreach (recipient ! _))
 
-    case FindOne(collection, query, fields, recipient) =>
-      val mc = getCollection(collection)
-      mc.foreach(_.findOne(query, fields) foreach { o =>
-        recipient ! MongoResult(o)
-      })
+    case FindAndModify(recipient, name, query, fields, sort, update, remove, returnNew, upsert) =>
+      getCollection(name).foreach(_.findAndModify(query, fields, sort, remove, update, returnNew, upsert) foreach (recipient ! _))
 
-    case Insert(collection, doc, concern) =>
-      val mc = getCollection(collection)
-      mc.foreach(_.insert(doc))
+    case FindAndRemove(name, query) =>
+      getCollection(name).foreach(_.findAndRemove(query))
 
-    case Update(collection, query, doc, multi, concern) =>
-      val mc = getCollection(collection)
-      mc.foreach(_.update(query, doc, upsert = false, multi, concern))
+    case FindOne(recipient, name, query, fields) =>
+      getCollection(name).foreach(recipient ! _.findOne(query, fields))
 
-    case Upsert(collection, query, doc, multi, concern) =>
-      val mc = getCollection(collection)
-      mc.foreach(_.update(query, doc, upsert = true, multi, concern))
+    case FindOneByID(recipient, name, id, fields) =>
+      getCollection(name).foreach(recipient ! _.findOneByID(id, fields))
+
+    case Insert(name, doc, concern) =>
+      val theSender = sender()
+      getCollection(name).foreach(theSender ! _.insert(doc))
+
+    case Save(name, doc, concern) =>
+      val theSender = sender()
+      getCollection(name).foreach(theSender ! _.save(doc, concern))
+
+    case Update(name, query, doc, multi, concern) =>
+      val theSender = sender()
+      getCollection(name).foreach(theSender ! _.update(query, doc, upsert = false, multi, concern))
+
+    case Upsert(name, query, doc, multi, concern) =>
+      val theSender = sender()
+      getCollection(name).foreach(theSender ! _.update(query, doc, upsert = true, multi, concern))
 
     case message =>
       unhandled(message)
@@ -68,16 +74,15 @@ object MongoDBActor {
   /**
    * Creates a new database connection
    */
-  def getConnection(addresses: List[ServerAddress]) = {
-    // create the options
-    val options = new MongoOptions()
-    options.connectionsPerHost = 100
-    options.maxWaitTime = 2000
-    options.socketKeepAlive = false
-    options.threadsAllowedToBlockForConnectionMultiplier = 50
+  def apply(connectionURL: String, databaseName: String) = {
+    new MongoDBActor(() => MongoClient(new MongoClientURI(connectionURL)), databaseName)
+  }
 
-    // create the connection
-    MongoConnection(addresses, options)
+  /**
+   * Creates a new database connection
+   */
+  def apply(addresses: List[ServerAddress], databaseName: String) = {
+    new MongoDBActor(() => MongoClient(addresses), databaseName)
   }
 
   /**
@@ -95,21 +100,35 @@ object MongoDBActor {
     }
   }
 
-  case class FindOne(collection: String, query: DBObject, fields: DBObject, recipient: BWxActorRef)
+  case class Find(recipient: BWxActorRef, name: String, query: DBObject, fields: DBObject = Q())
 
-  case class Find(collection: String, query: DBObject, fields: DBObject, recipient: BWxActorRef)
+  case class FindOne(recipient: BWxActorRef, name: String, query: DBObject, fields: DBObject = Q())
 
-  case class Insert(collection: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
+  case class FindOneByID(recipient: BWxActorRef, name: String, id: String, fields: DBObject = Q())
 
-  case class MongoResult(o: DBObject)
+  case class FindAndModify(recipient: BWxActorRef,
+                           name: String,
+                           query: DBObject,
+                           fields: DBObject = Q(),
+                           sort: DBObject = Q(),
+                           update: DBObject,
+                           remove: Boolean = false,
+                           returnNew: Boolean = true,
+                           upsert: Boolean = false)
 
-  case class Update(collection: String,
+  case class FindAndRemove(name: String, query: DBObject)
+
+  case class Insert(name: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
+
+  case class Save(name: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
+
+  case class Update(name: String,
                     query: DBObject,
                     doc: DBObject,
                     multi: Boolean = false,
                     concern: WriteConcern = WriteConcern.JournalSafe)
 
-  case class Upsert(collection: String,
+  case class Upsert(name: String,
                     query: DBObject,
                     doc: DBObject,
                     multi: Boolean = false,
