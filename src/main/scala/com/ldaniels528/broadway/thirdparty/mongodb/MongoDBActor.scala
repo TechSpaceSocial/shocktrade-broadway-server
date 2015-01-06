@@ -1,11 +1,9 @@
 package com.ldaniels528.broadway.thirdparty.mongodb
 
 import akka.actor.Actor
-import com.ldaniels528.broadway.core.actors.Actors.BWxActorRef
-import com.ldaniels528.broadway.core.actors.Actors.Implicits._
 import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor._
-import com.mongodb.ServerAddress
-import com.mongodb.casbah.Imports.{DBObject, DBObject => Q, _}
+import com.mongodb.casbah.Imports.{DBObject => Q, _}
+import com.mongodb.{DBObject, ServerAddress}
 
 import scala.collection.concurrent.TrieMap
 
@@ -26,20 +24,24 @@ class MongoDBActor(client: () => MongoClient, databaseName: String) extends Acto
   }
 
   override def receive = {
-    case Find(recipient, name, query, fields) =>
-      getCollection(name).foreach(_.find(query, fields) foreach (recipient ! _))
+    case Find(name, query, fields) =>
+      val theSender = sender()
+      getCollection(name).foreach(_.find(query, fields) foreach (theSender ! _))
 
-    case FindAndModify(recipient, name, query, fields, sort, update, remove, returnNew, upsert) =>
-      getCollection(name).foreach(_.findAndModify(query, fields, sort, remove, update, returnNew, upsert) foreach (recipient ! _))
+    case FindAndModify(name, query, fields, sort, update, remove, returnNew, upsert) =>
+      val theSender = sender()
+      getCollection(name).foreach(_.findAndModify(query, fields, sort, remove, update, returnNew, upsert) foreach (theSender ! _))
 
     case FindAndRemove(name, query) =>
       getCollection(name).foreach(_.findAndRemove(query))
 
-    case FindOne(recipient, name, query, fields) =>
-      getCollection(name).foreach(recipient ! _.findOne(query, fields))
+    case FindOne(name, query, fields) =>
+      val theSender = sender()
+      getCollection(name).foreach(theSender ! _.findOne(query, fields))
 
-    case FindOneByID(recipient, name, id, fields) =>
-      getCollection(name).foreach(recipient ! _.findOneByID(id, fields))
+    case FindOneByID(name, id, fields) =>
+      val theSender = sender()
+      getCollection(name).foreach(theSender ! _.findOneByID(id, fields))
 
     case Insert(name, doc, concern) =>
       val theSender = sender()
@@ -100,14 +102,13 @@ object MongoDBActor {
     }
   }
 
-  case class Find(recipient: BWxActorRef, name: String, query: DBObject, fields: DBObject = Q())
+  case class Find(name: String, query: DBObject, fields: DBObject = Q())
 
-  case class FindOne(recipient: BWxActorRef, name: String, query: DBObject, fields: DBObject = Q())
+  case class FindOne(name: String, query: DBObject, fields: DBObject = Q())
 
-  case class FindOneByID(recipient: BWxActorRef, name: String, id: String, fields: DBObject = Q())
+  case class FindOneByID(name: String, id: String, fields: DBObject = Q())
 
-  case class FindAndModify(recipient: BWxActorRef,
-                           name: String,
+  case class FindAndModify(name: String,
                            query: DBObject,
                            fields: DBObject = Q(),
                            sort: DBObject = Q(),

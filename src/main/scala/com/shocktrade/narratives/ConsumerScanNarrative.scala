@@ -2,7 +2,6 @@ package com.shocktrade.narratives
 
 import akka.actor.Actor
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.Actors.Implicits._
 import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.kafka.KafkaMicroConsumer.{MessageData, _}

@@ -3,9 +3,9 @@ package com.shocktrade.narratives
 import java.util.Date
 
 import akka.actor.Actor
+import akka.util.Timeout
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.Actors.BWxActorRef
-import com.ldaniels528.broadway.core.actors.Actors.Implicits._
+import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.CopyText
 import com.ldaniels528.broadway.server.ServerConfig
@@ -17,6 +17,9 @@ import com.shocktrade.avro.CSVQuoteRecord
 import com.shocktrade.narratives.YFStockQuoteImportNarrative.StockQuoteLookupActor
 import com.shocktrade.narratives.YFStockQuoteToMongoDBNarrative.StockQuoteTransformingActor
 import org.slf4j.LoggerFactory
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
  * Yahoo! Finance Stock Quote Export to MongoDB Narrative
@@ -49,6 +52,7 @@ with KafkaConstants with MongoDBConstants {
  */
 object YFStockQuoteToMongoDBNarrative extends MongoDBConstants {
   private[this] lazy val logger = LoggerFactory.getLogger(getClass)
+  private implicit val timeout = new Timeout(30.seconds)
 
   /**
    * Stock Quote Transforming Actor
@@ -99,8 +103,8 @@ object YFStockQuoteToMongoDBNarrative extends MongoDBConstants {
 
       // if the symbol was changed  update the old record
       newSymbol.foreach { symbol =>
-        recipient ! Upsert(StockQuotes, query = Q("symbol" -> oldSymbol), doc = Q("symbol" -> oldSymbol))
-        recipient ! Upsert(StockQuotes, query = Q("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
+        recipient ? Upsert(StockQuotes, query = Q("symbol" -> oldSymbol), doc = Q("symbol" -> oldSymbol))
+        recipient ? Upsert(StockQuotes, query = Q("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
       }
     }
 

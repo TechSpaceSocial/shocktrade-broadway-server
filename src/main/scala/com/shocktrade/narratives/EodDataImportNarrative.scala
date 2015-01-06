@@ -5,7 +5,6 @@ import java.text.SimpleDateFormat
 
 import akka.actor.Actor
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.Actors.Implicits._
 import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
