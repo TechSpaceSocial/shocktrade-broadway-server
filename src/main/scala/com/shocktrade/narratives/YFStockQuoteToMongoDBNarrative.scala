@@ -73,7 +73,21 @@ object YFStockQuoteToMongoDBNarrative extends MongoDBConstants {
       val oldSymbol = Option(record.getOldSymbol)
       val theSymbol = newSymbol ?? oldSymbol
 
-      recipient ! Upsert(
+      recipient ! createUpdate(record)
+
+      // if the symbol was changed  update the old record
+      newSymbol.foreach { symbol =>
+        recipient ? Upsert(StockQuotes, query = Q("symbol" -> oldSymbol), doc = Q("symbol" -> oldSymbol))
+        recipient ? Upsert(StockQuotes, query = Q("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
+      }
+    }
+
+    private def createUpdate(record: CSVQuoteRecord) = {
+      val newSymbol = Option(record.getNewSymbol)
+      val oldSymbol = Option(record.getOldSymbol)
+      val theSymbol = newSymbol ?? oldSymbol
+
+      Upsert(
         StockQuotes,
         query = Q("symbol" -> theSymbol),
         doc = $set(
@@ -100,12 +114,6 @@ object YFStockQuoteToMongoDBNarrative extends MongoDBConstants {
           "yfDynRespTimeMsec" -> record.getResponseTimeMsec,
           "yfDynLastUpdated" -> new Date(),
           "lastUpdated" -> new Date()))
-
-      // if the symbol was changed  update the old record
-      newSymbol.foreach { symbol =>
-        recipient ? Upsert(StockQuotes, query = Q("symbol" -> oldSymbol), doc = Q("symbol" -> oldSymbol))
-        recipient ? Upsert(StockQuotes, query = Q("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
-      }
     }
 
     private def computeSpread(high: Option[Double], low: Option[Double]): Option[Double] = {
