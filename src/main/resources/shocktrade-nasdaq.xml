@@ -9,6 +9,8 @@
 
     <narrative id="QuoteImportNarrative" class="com.shocktrade.narratives.YFStockQuoteImportNarrative" />
 
+    <narrative id="OTCBBDailyUpdateNarrative" class="com.shocktrade.narratives.OTCBBDailyUpdateNarrative" />
+
     <location id="Combiner" path="/Users/ldaniels/broadway/incoming/combine">
         <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative" />
         <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative" />
@@ -23,6 +25,13 @@
         <feed match="exact" name="OTCBB.txt" narrative-ref="QuoteImportNarrative" />
     </location>
 
+    <location id="EodData" path="/Users/ldaniels/broadway/incoming/tradingHistory">
+        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
+        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
+        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
+        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
+    </location>
+
     <location id="KeyStats" path="/Users/ldaniels/broadway/incoming/keyStats">
         <feed match="exact" name="AMEX.txt" narrative-ref="KeyStatsImportNarrative" />
         <feed match="exact" name="NASDAQ.txt" narrative-ref="KeyStatsImportNarrative" />
@@ -30,11 +39,9 @@
         <feed match="exact" name="OTCBB.txt" narrative-ref="KeyStatsImportNarrative" />
     </location>
 
-    <location id="EodData" path="/Users/ldaniels/broadway/incoming/tradingHistory">
-        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
-        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
-        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
-        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
+    <location id="OTCTranHistory" path="http://otce.finra.org/MSHistoricalDataMonthly/DownloadFileStream?fileLocation=D:\\OTCE\DownloadFiles\\HistoricalData\\">
+        <!-- BB{{ date:MMddyyyy }}.txt => BB01202015.txt-->
+        <feed match="exact" name="OtherOTC_122014.txt" narrative-ref="OTCBBDailyUpdateNarrative" />
     </location>
 
 </narrative-config>

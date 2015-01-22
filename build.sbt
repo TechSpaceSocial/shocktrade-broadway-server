@@ -9,7 +9,7 @@ name := "shocktrade-server"
 
 organization := "com.ldaniels528"
 
-version := "0.1"
+version := "0.2"
 
 scalaVersion := "2.10.4"
 
@@ -43,7 +43,7 @@ mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
 
 // Shocktrade Dependencies
 libraryDependencies ++= Seq(
-  "com.ldaniels528" %% "broadway" % "0.1",
+  "com.ldaniels528" %% "broadway" % "0.2",
   "com.ldaniels528" %% "shocktrade-services" % "0.2.9"
 )
 

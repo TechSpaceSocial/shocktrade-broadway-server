@@ -1,0 +1,22 @@
+{
+    "type": "record",
+    "name": "OTCTransHistoryRecord",
+    "namespace": "com.shocktrade.avro",
+    "fields":[
+        { "name": "tranDate", "type":"long", "doc":"transaction type" },
+        { "name": "tranType", "type":"string", "doc":"transaction type" },
+        { "name": "newSymbol", "type":["null", "string"], "doc":"new stock symbol", "default":null },
+        { "name": "oldSymbol", "type":["null", "string"], "doc":"former stock symbol", "default":null },
+        { "name": "newName", "type":["null", "string"], "doc":"the new company name", "default":null },
+        { "name": "oldName", "type":["null", "string"], "doc":"the new company name", "default":null },
+        { "name": "effDate", "type":["null", "long"], "doc":"the effective date of this transaction", "default":null },
+        { "name": "comments", "type":["null", "string"], "doc":"the transaction comment", "default":null },
+        { "name": "notes", "type":["null", "string"], "doc":"the transaction notes", "default":null },
+        { "name": "coPhone", "type":["null", "string"], "doc":"company phone", "default":null },
+        { "name": "marketCategory", "type":["null", "string"], "doc":"market category", "default":null },
+        { "name": "OATSReportable", "type":["null", "boolean"], "doc":"OATS reportable", "default":null },
+        { "name": "unitOfTrade", "type":["null", "int"], "doc":"unit of trade", "default":null },
+        { "name": "registrationFee", "type":["null", "boolean"], "doc":"registration fee", "default":null }
+    ],
+    "doc": "A schema for CSV quotes"
+}
