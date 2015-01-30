@@ -39,6 +39,10 @@
         <feed match="exact" name="OTCBB.txt" narrative-ref="KeyStatsImportNarrative" />
     </location>
 
+    <!--
+    http://otce.finra.org/MSHistoricalDataMonthly/DownloadFileStream?fileLocation=D:\OTCE\DownloadFiles\HistoricalData\BB01202015.txt
+    http://otce.finra.org/RegSHO/DownloadFileStream?fileLocation=D:\OTCE\DownloadFiles\SHO\otc-thresh20150121_201501212258.txt
+    -->
     <location id="OTCTranHistory" path="http://otce.finra.org/MSHistoricalDataMonthly/DownloadFileStream?fileLocation=D:\\OTCE\DownloadFiles\\HistoricalData\\">
         <!-- BB{{ date:MMddyyyy }}.txt => BB01202015.txt-->
         <feed match="exact" name="OtherOTC_122014.txt" narrative-ref="OTCBBDailyUpdateNarrative" />

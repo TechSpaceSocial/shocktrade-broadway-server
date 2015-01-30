@@ -9,9 +9,9 @@ name := "shocktrade-server"
 
 organization := "com.ldaniels528"
 
-version := "0.2"
+version := "0.3"
 
-scalaVersion := "2.10.4"
+scalaVersion := "2.11.4"
 
 seq(sbtavro.SbtAvro.avroSettings: _*)
 
@@ -43,27 +43,25 @@ mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
 
 // Shocktrade Dependencies
 libraryDependencies ++= Seq(
-  "com.ldaniels528" %% "broadway" % "0.2",
+  "com.ldaniels528" %% "broadway" % "0.3",
   "com.ldaniels528" %% "shocktrade-services" % "0.2.9"
 )
 
 // General Dependencies
 libraryDependencies ++= Seq(
-  "com.twitter" %% "bijection-core" % "0.7.1",
-  "com.twitter" %% "bijection-avro" % "0.7.1",
-  "com.typesafe.akka" %% "akka-actor" % "2.3.8",
-  "net.liftweb" %% "lift-json" % "3.0-M1",
-  "org.mongodb" % "casbah-commons_2.10" % "2.7.4",
-  "org.mongodb" % "casbah-core_2.10" % "2.7.4",
-  "org.slf4j" % "slf4j-api" % "1.7.9",
-  "org.slf4j" % "log4j-over-slf4j" % "1.7.9",
+  "com.twitter" %% "bijection-core" % "0.7.2",
+  "com.twitter" %% "bijection-avro" % "0.7.2",
+  "com.typesafe.akka" %% "akka-actor" % "2.3.9",
+  "net.liftweb" %% "lift-json" % "3.0-M3",
+  "org.slf4j" % "slf4j-api" % "1.7.10",
+  "org.slf4j" % "log4j-over-slf4j" % "1.7.10",
   "net.databinder.dispatch" %% "dispatch-core" % "0.11.2"
 )
 
 // Testing Dependencies
 libraryDependencies ++= Seq(
-  "org.mockito" % "mockito-all" % "1.9.5" % "test",
-  "org.scalatest" %% "scalatest" % "2.2.2" % "test"
+  "org.mockito" % "mockito-all" % "1.10.19" % "test",
+  "org.scalatest" %% "scalatest" % "2.2.3" % "test"
 )
 
 // define the resolvers
