@@ -7,6 +7,7 @@ import akka.util.Timeout
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.CopyText
+import com.ldaniels528.broadway.core.resources.ReadableResource
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor
 import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor.{Upsert, parseServerList}
@@ -27,21 +28,24 @@ import scala.language.postfixOps
 class YFStockQuoteToMongoDBNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Stock Quote Export")
 with KafkaConstants with MongoDBConstants {
   // create a MongoDB actor for persisting stock quotes
-  val mongoActor = addActor(MongoDBActor(parseServerList(MongoDBServers), ShockTradeDB))
+  lazy val mongoActor = addActor(MongoDBActor(parseServerList(MongoDBServers), ShockTradeDB))
 
   // stock quote to MongoDB document transformer
-  val transformer = addActor(new StockQuoteTransformingActor(mongoActor))
+  lazy val transformer = addActor(new StockQuoteTransformingActor(mongoActor))
 
   // create a stock quote lookup actor
-  val quoteLookup = addActor(new StockQuoteLookupActor(transformer))
+  lazy val quoteLookup = addActor(new StockQuoteLookupActor(transformer))
 
   // create a file reader actor to read lines from the incoming resource
   // TODO create a Kafka consumer to use as the input device
-  val fileReader = addActor(new FileReadingActor(config))
+  lazy val fileReader = addActor(new FileReadingActor(config))
 
-  onStart { resource =>
-    // start the processing by submitting a request to the file reader actor
-    fileReader ! CopyText(resource, quoteLookup)
+  onStart {
+    case resource: ReadableResource =>
+      // start the processing by submitting a request to the file reader actor
+      fileReader ! CopyText(resource, quoteLookup)
+    case _ =>
+      throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
   }
 }
 
@@ -102,7 +106,7 @@ object YFStockQuoteToMongoDBNarrative extends MongoDBConstants {
           "changePct" -> record.getChangePct,
           "high" -> record.getHigh,
           "low" -> record.getLow,
-          "spread" -> computeSpread(Option(record.getHigh), Option(record.getLow)),
+          "spread" -> computeSpread(Option(record.getHigh: Double), Option(record.getLow: Double)),
           "volume" -> record.getVolume,
 
           // classification fields

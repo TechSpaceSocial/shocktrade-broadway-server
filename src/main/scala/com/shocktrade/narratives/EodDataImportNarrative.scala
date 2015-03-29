@@ -47,9 +47,12 @@ with KafkaConstants {
   // create a EOD data transformation actor
   val eodDataToAvroActor = addActor(new EodDataToAvroActor(throttler))
 
-  onStart { resource =>
-    // start the processing by submitting a request to the file reader actor
-    fileReader ! CopyText(resource, eodDataToAvroActor, handler = Delimited("[,]"))
+  onStart {
+    case resource: ReadableResource =>
+      // start the processing by submitting a request to the file reader actor
+      fileReader ! CopyText(resource, eodDataToAvroActor, handler = Delimited("[,]"))
+    case _ =>
+      throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
   }
 }
 

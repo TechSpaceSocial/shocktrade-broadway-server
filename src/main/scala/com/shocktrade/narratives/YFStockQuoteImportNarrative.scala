@@ -3,13 +3,14 @@ package com.shocktrade.narratives
 import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor._
-import com.ldaniels528.broadway.core.actors._
 import com.ldaniels528.broadway.core.actors.kafka.avro._
+import com.ldaniels528.broadway.core.resources.IterableResource
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.shocktrade.helpers.ResourceTracker
 import com.shocktrade.narratives.YFStockQuoteImportNarrative.StockQuoteLookupActor
 import com.shocktrade.services.{YFStockQuoteService, YahooFinanceServices}
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext
 
@@ -19,18 +20,19 @@ import scala.concurrent.ExecutionContext
  */
 class YFStockQuoteImportNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Stock Quote Import")
 with KafkaConstants {
-  // create a file reader actor to read lines from the incoming resource
-  val fileReader = addActor(new FileReadingActor(config))
+  lazy val logger = LoggerFactory.getLogger(getClass)
 
   // create a Kafka publishing actor for stock quotes
-  val quotePublisher = addActor(new KafkaAvroPublishingActor(quotesTopic, brokers))
+  lazy val quotePublisher = addActor(new KafkaAvroPublishingActor(quotesTopic, brokers))
 
   // create a stock quote lookup actor
-  val quoteLookup = addActor(new StockQuoteLookupActor(quotePublisher))
+  lazy val quoteLookup = addActor(new StockQuoteLookupActor(quotePublisher))
 
-  onStart { resource =>
-    // start the processing by submitting a request to the file reader actor
-    fileReader ! CopyText(resource, quoteLookup, handler = Delimited("[\t]"))
+  onStart {
+    case resource: IterableResource[String] =>
+      resource.iterator foreach (quoteLookup ! _)
+    case _ =>
+      throw new IllegalStateException(s"A ${classOf[IterableResource[_]].getName} was expected")
   }
 }
 

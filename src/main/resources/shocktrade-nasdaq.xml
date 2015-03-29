@@ -11,6 +11,10 @@
 
     <narrative id="OTCBBDailyUpdateNarrative" class="com.shocktrade.narratives.OTCBBDailyUpdateNarrative" />
 
+    <schedule id="TradingSchedule" class="com.shocktrade.schedules.TradingSchedule" />
+
+    <trigger schedule-ref="TradingSchedule" narrative-ref="QuoteImportNarrative" />
+
     <location id="Combiner" path="/Users/ldaniels/broadway/incoming/combine">
         <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative" />
         <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative" />

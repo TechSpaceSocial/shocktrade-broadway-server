@@ -5,6 +5,7 @@ import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor._
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
+import com.ldaniels528.broadway.core.resources.ReadableResource
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.shocktrade.helpers.ResourceTracker
@@ -21,17 +22,20 @@ class YFKeyStatsImportNarrative(config: ServerConfig) extends BroadwayNarrative(
 with KafkaConstants {
 
   // create a file reader actor to read lines from the incoming resource
-  val fileReader = addActor(new FileReadingActor(config))
+  lazy val fileReader = addActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor for stock quotes
-  val keyStatsPublisher = addActor(new KafkaAvroPublishingActor(keyStatsTopic, brokers))
+  lazy val keyStatsPublisher = addActor(new KafkaAvroPublishingActor(keyStatsTopic, brokers))
 
   // create a stock quote lookup actor
-  val keyStatsLookup = addActor(new KeyStatisticsLookupActor(keyStatsPublisher))
+  lazy val keyStatsLookup = addActor(new KeyStatisticsLookupActor(keyStatsPublisher))
 
-  onStart { resource =>
-    // start the processing by submitting a request to the file reader actor
-    fileReader ! CopyText(resource, keyStatsLookup, handler = Delimited("[\t]"))
+  onStart {
+    case resource: ReadableResource =>
+      // start the processing by submitting a request to the file reader actor
+      fileReader ! CopyText(resource, keyStatsLookup, handler = Delimited("[\t]"))
+    case _ =>
+      throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
   }
 }
 

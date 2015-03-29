@@ -8,6 +8,7 @@ import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
+import com.ldaniels528.broadway.core.resources.ReadableResource
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.shocktrade.avro.OTCTransHistoryRecord
@@ -21,17 +22,20 @@ import com.shocktrade.narratives.OTCBBDailyUpdateNarrative.OTCBBEnrichmentActor
 class OTCBBDailyUpdateNarrative(config: ServerConfig) extends BroadwayNarrative(config, "OTC/BB Daily Update")
 with KafkaConstants {
   // create a file reader actor to read lines from the incoming resource
-  val fileReader = addActor(new FileReadingActor(config))
+  lazy val fileReader = addActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor for OTC transactions
-  val otcPublisher = addActor(new KafkaAvroPublishingActor(otcTranHistoryTopic, brokers))
+  lazy val otcPublisher = addActor(new KafkaAvroPublishingActor(otcTranHistoryTopic, brokers))
 
   // create an OTC/BB data conversion actor
-  val otcConverter = addActor(new OTCBBEnrichmentActor(otcPublisher))
+  lazy val otcConverter = addActor(new OTCBBEnrichmentActor(otcPublisher))
 
-  onStart { resource =>
-    // start the processing by submitting a request to the file reader actor
-    fileReader ! CopyText(resource, otcConverter, handler = Delimited("[|]"))
+  onStart {
+    case resource: ReadableResource =>
+      // start the processing by submitting a request to the file reader actor
+      fileReader ! CopyText(resource, otcConverter, handler = Delimited("[|]"))
+    case _ =>
+      throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
   }
 }
 

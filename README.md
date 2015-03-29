@@ -19,13 +19,13 @@ Below is the Broadway narrative that implements the flow described above:
 class StockQuoteImportNarrative(config: ServerConfig) extends BroadwayNarrative(config, "Stock Quote Import")
 with KafkaConstants {
   // create a file reader actor to read lines from the incoming resource
-  val fileReader = addActor(new FileReadingActor(config))
+  lazy val fileReader = addActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor for stock quotes
-  val quotePublisher = addActor(new KafkaAvroPublishingActor(quotesTopic, brokers))
+  lazy val quotePublisher = addActor(new KafkaAvroPublishingActor(quotesTopic, brokers))
 
   // create a stock quote lookup actor
-  val quoteLookup = addActor(new StockQuoteLookupActor(quotePublisher))
+  lazy val quoteLookup = addActor(new StockQuoteLookupActor(quotePublisher))
 
   onStart { resource =>
     // start the processing by submitting a request to the file reader actor

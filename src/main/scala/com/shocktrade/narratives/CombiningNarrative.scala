@@ -4,7 +4,7 @@ import akka.actor.Actor
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{BinaryBlock, CopyText, TextLine}
-import com.ldaniels528.broadway.core.resources.RandomAccessFileResource
+import com.ldaniels528.broadway.core.resources.{RandomAccessFileResource, ReadableResource}
 import com.ldaniels528.broadway.server.ServerConfig
 import com.shocktrade.narratives.CombiningNarrative.FileWritingActor
 
@@ -14,14 +14,17 @@ import com.shocktrade.narratives.CombiningNarrative.FileWritingActor
  */
 class CombiningNarrative(config: ServerConfig) extends BroadwayNarrative(config, "File Combining") {
   // create a file reader actor to read lines from the incoming resource
-  val fileReader = addActor(new FileReadingActor(config))
+  lazy val fileReader = addActor(new FileReadingActor(config))
 
   // create an actor to copy the contents to
-  val fileWriter = addActor(new FileWritingActor(config, RandomAccessFileResource("/Users/ldaniels/NASDAQ-bundle.txt")))
+  lazy val fileWriter = addActor(new FileWritingActor(config, RandomAccessFileResource("/Users/ldaniels/NASDAQ-bundle.txt")))
 
-  onStart { resource =>
-    // start the processing by submitting a request to the file reader actor
-    fileReader ! CopyText(resource, fileWriter)
+  onStart {
+    case resource: ReadableResource =>
+      // start the processing by submitting a request to the file reader actor
+      fileReader ! CopyText(resource, fileWriter)
+    case _ =>
+      throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
   }
 }
 
