@@ -3,15 +3,18 @@ import Keys._
 import sbtassembly.Plugin._
 import AssemblyKeys._
 
-assemblySettings
-
 name := "shocktrade-server"
 
 organization := "com.ldaniels528"
 
-version := "0.3"
+version := "0.4"
 
 scalaVersion := "2.11.5"
+
+javacOptions ++= Seq("-Xlint:deprecation", "-Xlint:unchecked", "-source", "1.7", "-target", "1.7", "-g:vars")
+
+scalacOptions ++= Seq("-deprecation", "-encoding", "UTF-8", "-feature", "-target:jvm-1.7", "-unchecked",
+  "-Ywarn-adapted-args", "-Ywarn-value-discard", "-Xlint")
 
 val akakVersion = "2.3.9"
 val avroVersion = "1.7.7"
@@ -19,20 +22,7 @@ val bijectionVersion = "0.7.2"
 val sprayVersion = "1.3.2"
 val slf4jVersion = "1.7.10"
 
-Seq(sbtavro.SbtAvro.avroSettings: _*)
-
-(version in avroConfig) := avroVersion
-
-(stringType in avroConfig) := "String"
-
-(sourceDirectory in avroConfig) := file("src/main/resources/avro")
-
-(javaSource in avroConfig) := file("src/main/java")
-
-scalacOptions ++= Seq("-deprecation", "-encoding", "UTF-8", "-feature", "-target:jvm-1.7", "-unchecked",
-  "-Ywarn-adapted-args", "-Ywarn-value-discard", "-Xlint")
-
-javacOptions ++= Seq("-Xlint:deprecation", "-Xlint:unchecked", "-source", "1.7", "-target", "1.7", "-g:vars")
+assemblySettings
 
 mainClass in assembly := Some("com.ldaniels528.broadway.BroadwayServer")
 
@@ -48,6 +38,16 @@ mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
     case x => MergeStrategy.first
   }
 }
+
+Seq(sbtavro.SbtAvro.avroSettings: _*)
+
+(version in avroConfig) := avroVersion
+
+(stringType in avroConfig) := "String"
+
+(javaSource in avroConfig) := file("src/main/java")
+
+(sourceDirectory in avroConfig) := file("src/main/resources/avro")
 
 // Shocktrade Dependencies
 libraryDependencies ++= Seq(

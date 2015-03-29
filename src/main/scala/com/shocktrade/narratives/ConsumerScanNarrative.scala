@@ -21,13 +21,13 @@ class ConsumerScanNarrative(config: ServerConfig) extends BroadwayNarrative(conf
   implicit val zk = ZKProxy(zkHost)
 
   // create the consumer group scanning actor
-  val scanActor = addActor(new ConsumerScanningActor())
+  lazy val scanActor = addActor(new ConsumerScanningActor())
 
   // create the consumer group reset actor
-  val resetActor = addActor(new ConsumerResetActor(scanActor))
+  lazy val resetActor = addActor(new ConsumerResetActor(scanActor))
 
   // create the partition coordinating actor
-  val coordinator = addActor(new ScanCoordinatingActor(resetActor))
+  lazy val coordinator = addActor(new ScanCoordinatingActor(resetActor))
 
   onStart { resource =>
     // start the processing by submitting a request to the file reader actor
