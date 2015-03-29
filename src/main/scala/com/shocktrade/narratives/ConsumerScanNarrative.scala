@@ -1,8 +1,7 @@
 package com.shocktrade.narratives
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.kafka.KafkaMicroConsumer.{MessageData, _}
 import com.ldaniels528.trifecta.io.kafka.{Broker, KafkaMicroConsumer}
@@ -47,7 +46,7 @@ object ConsumerScanNarrative {
    * Scan Coordinating Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class ScanCoordinatingActor(target: BWxActorRef)(implicit ec: ExecutionContext, zk: ZKProxy) extends Actor {
+  class ScanCoordinatingActor(target: ActorRef)(implicit ec: ExecutionContext, zk: ZKProxy) extends Actor {
 
     override def receive = {
       case groupId: String =>
@@ -71,7 +70,7 @@ object ConsumerScanNarrative {
    * Consumer Reset Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class ConsumerResetActor(target: BWxActorRef)(implicit zk: ZKProxy) extends Actor {
+  class ConsumerResetActor(target: ActorRef)(implicit zk: ZKProxy) extends Actor {
 
     override def receive = {
       case scan@Scan(topic, groupId, brokers) =>
@@ -87,7 +86,7 @@ object ConsumerScanNarrative {
       val partitions = getTopicPartitions(topic)
       partitions foreach { partition =>
         new KafkaMicroConsumer(TopicAndPartition(topic, partition), brokers) use { subs =>
-          subs.getFirstOffset map { offset =>
+          subs.getFirstOffset foreach { offset =>
             logger.info(s"Setting consumer $groupId for partition $topic:$partition to $offset...")
             subs.commitOffsets(groupId, offset, metadata = "resetting ID")
           }

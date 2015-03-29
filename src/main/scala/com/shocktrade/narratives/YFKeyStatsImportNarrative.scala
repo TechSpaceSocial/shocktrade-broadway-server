@@ -1,8 +1,7 @@
 package com.shocktrade.narratives
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor._
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
@@ -46,7 +45,7 @@ object YFKeyStatsImportNarrative {
    * Key Statistics Lookup Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class KeyStatisticsLookupActor(target: BWxActorRef)(implicit ec: ExecutionContext) extends Actor {
+  class KeyStatisticsLookupActor(target: ActorRef)(implicit ec: ExecutionContext) extends Actor {
     override def receive = {
       case OpeningFile(resource) =>
         ResourceTracker.start(resource)

@@ -3,9 +3,8 @@ package com.shocktrade.narratives
 import java.lang.{Double => JDouble, Long => JLong}
 import java.text.SimpleDateFormat
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor._
@@ -64,7 +63,7 @@ object EodDataImportNarrative {
    * EODData-to-Avro Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class EodDataToAvroActor(kafkaActor: BWxActorRef) extends Actor {
+  class EodDataToAvroActor(kafkaActor: ActorRef) extends Actor {
     private val sdf = new SimpleDateFormat("yyyyMMdd")
 
     override def receive = {

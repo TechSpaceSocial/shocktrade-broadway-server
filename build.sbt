@@ -43,7 +43,7 @@ mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
 
 // Shocktrade Dependencies
 libraryDependencies ++= Seq(
-  "com.ldaniels528" %% "broadway" % "0.3",
+  "com.ldaniels528" %% "broadway" % "0.7",
   "com.ldaniels528" %% "shocktrade-services" % "0.2.9"
 )
 

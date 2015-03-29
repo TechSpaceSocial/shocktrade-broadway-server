@@ -2,10 +2,9 @@ package com.shocktrade.narratives
 
 import java.util.Date
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import akka.util.Timeout
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.CopyText
 import com.ldaniels528.broadway.server.ServerConfig
@@ -58,7 +57,7 @@ object YFStockQuoteToMongoDBNarrative extends MongoDBConstants {
    * Stock Quote Transforming Actor
    * @author lawrence.daniels@gmail.com
    */
-  class StockQuoteTransformingActor(recipient: BWxActorRef) extends Actor {
+  class StockQuoteTransformingActor(recipient: ActorRef) extends Actor {
     override def receive = {
       case record: CSVQuoteRecord =>
         persistDocument(record)
@@ -77,8 +76,8 @@ object YFStockQuoteToMongoDBNarrative extends MongoDBConstants {
 
       // if the symbol was changed  update the old record
       newSymbol.foreach { symbol =>
-        recipient ? Upsert(StockQuotes, query = Q("symbol" -> oldSymbol), doc = Q("symbol" -> oldSymbol))
-        recipient ? Upsert(StockQuotes, query = Q("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
+        recipient ! Upsert(StockQuotes, query = Q("symbol" -> oldSymbol), doc = Q("symbol" -> oldSymbol))
+        recipient ! Upsert(StockQuotes, query = Q("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
       }
     }
 

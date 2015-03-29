@@ -3,9 +3,8 @@ package com.shocktrade.narratives
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
@@ -56,7 +55,7 @@ object OTCBBDailyUpdateNarrative {
    * OTC/BB Data Enrichment Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class OTCBBEnrichmentActor(target: BWxActorRef) extends Actor {
+  class OTCBBEnrichmentActor(target: ActorRef) extends Actor {
     private val sdf_ts = new SimpleDateFormat("MM/dd/yyyy hh:mm:ss")
     private val sdf_dt = new SimpleDateFormat("MM/dd/yyyy")
 

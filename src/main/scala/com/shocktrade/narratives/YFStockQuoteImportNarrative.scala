@@ -1,8 +1,7 @@
 package com.shocktrade.narratives
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.Actors._
 import com.ldaniels528.broadway.core.actors.FileReadingActor._
 import com.ldaniels528.broadway.core.actors._
 import com.ldaniels528.broadway.core.actors.kafka.avro._
@@ -45,7 +44,7 @@ object YFStockQuoteImportNarrative {
    * Stock Quote Lookup Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class StockQuoteLookupActor(target: BWxActorRef)(implicit ec: ExecutionContext) extends Actor {
+  class StockQuoteLookupActor(target: ActorRef)(implicit ec: ExecutionContext) extends Actor {
     private val parameters = YFStockQuoteService.getParams(
       "symbol", "exchange", "lastTrade", "tradeDate", "tradeTime", "ask", "bid", "change", "changePct",
       "prevClose", "open", "close", "high", "low", "volume", "marketCap", "errorMessage")
