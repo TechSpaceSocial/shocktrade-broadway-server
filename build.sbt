@@ -30,7 +30,7 @@ mainClass in assembly := Some("com.ldaniels528.broadway.BroadwayServer")
 
 test in assembly := {}
 
-jarName in assembly := "shocktrade-server.jar"
+jarName in assembly := "shocktrade-server" + version.value + ".bin.jar"
 
 mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
   {
