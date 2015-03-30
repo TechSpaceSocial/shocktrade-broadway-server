@@ -55,6 +55,8 @@ libraryDependencies ++= Seq(
   "com.ldaniels528" %% "shocktrade-services" % "0.2.9",
   "com.ldaniels528" %% "tabular" % "0.1.0",
   "com.ldaniels528" %% "trifecta" % "0.18.15"
+    exclude("org.mongodb", "casbah-commons")
+    exclude("org.mongodb", "casbah-core")
 )
 
 // Avro Dependencies

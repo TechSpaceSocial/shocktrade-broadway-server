@@ -65,7 +65,7 @@ class BroadwayServer(config: ServerConfig) {
     topologyConfigs foreach { tc =>
 
       // setup scheduled jobs
-      system.scheduler.schedule(0.seconds, 1.minute, new Runnable {
+      system.scheduler.schedule(0.seconds, 5.minute, new Runnable {
         override def run() {
           tc.triggers foreach { trigger =>
             if(trigger.isReady(System.currentTimeMillis())) {

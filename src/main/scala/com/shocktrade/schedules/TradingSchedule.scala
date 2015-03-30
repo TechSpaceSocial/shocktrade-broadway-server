@@ -8,11 +8,11 @@ import com.shocktrade.services.util.DateUtil
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 case class TradingSchedule(id: String) extends Scheduling {
-  private var lastRunMillis = System.currentTimeMillis()
+  private var lastCheckMillis: Long = 0
 
   override def isEligible(eventTime: Long) = {
-    val isReady = (eventTime - lastRunMillis >= 60000L) //&& DateUtil.isTradingActive(eventTime)
-    if (isReady) lastRunMillis = System.currentTimeMillis()
+    val isReady = (eventTime - lastCheckMillis >= 60000L) //&& DateUtil.isTradingActive(eventTime)
+    lastCheckMillis = System.currentTimeMillis()
     isReady
   }
 

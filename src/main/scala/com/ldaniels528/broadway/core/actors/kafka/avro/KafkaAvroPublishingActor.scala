@@ -1,14 +1,14 @@
 package com.ldaniels528.broadway.core.actors.kafka.avro
 
-import java.util.UUID
+import java.net.SocketTimeoutException
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorLogging}
+import com.datastax.driver.core.utils.UUIDs
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor._
 import com.ldaniels528.trifecta.io.ByteBufferUtils
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.ldaniels528.trifecta.io.kafka.{Broker, KafkaPublisher}
 import org.apache.avro.generic.GenericRecord
-import org.slf4j.LoggerFactory
 
 import scala.util.{Failure, Success}
 
@@ -16,8 +16,7 @@ import scala.util.{Failure, Success}
  * Kafka-Avro Publishing Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class KafkaAvroPublishingActor(topic: String, brokers: String) extends Actor {
-  private lazy val logger = LoggerFactory.getLogger(getClass)
+class KafkaAvroPublishingActor(topic: String, brokers: String) extends Actor with ActorLogging {
   private val publisher = KafkaPublisher(Broker.parseBrokerList(brokers))
 
   override def preStart() = publisher.open()
@@ -25,24 +24,23 @@ class KafkaAvroPublishingActor(topic: String, brokers: String) extends Actor {
   override def postStop() = publisher.close()
 
   override def receive = {
-    case Publish(message, key) => publish(topic, key, message)
-    case PublishAvro(record, key) => publish(topic, key, AvroConversion.encodeRecord(record))
+    case Publish(message, key, attempts) => publish(topic, key, message, attempts)
+    case PublishAvro(record, key, attempts) => publish(topic, key, AvroConversion.encodeRecord(record), attempts)
     case message =>
-      logger.warn(s"Unhandled message $message")
+      log.error(s"Unhandled message $message")
       unhandled(message)
   }
 
   private def publish(topic: String, key: Array[Byte], message: Array[Byte], attempts: Int = 1) {
     publisher.publish(topic, key, message) match {
       case Success(_) =>
-      case Failure(e: java.net.ConnectException) =>
+      case Failure(e: java.net.ConnectException | SocketTimeoutException) =>
         if (attempts < 3) {
-          Thread.sleep(attempts * 5000)
-          publish(topic, key, message, attempts + 1)
+          self ! Publish(key, message, attempts + 1)
         }
-        else logger.error(s"Failed ($attempts times) to get a connection to publish message")
+        else log.error(s"Failed ($attempts times) to get a connection to publish message", e)
       case Failure(e) =>
-        logger.error(s"Failed to publish message: ${e.getMessage}")
+        log.error(s"Failed to publish message: ${e.getMessage}", e)
     }
   }
 
@@ -54,10 +52,10 @@ class KafkaAvroPublishingActor(topic: String, brokers: String) extends Actor {
  */
 object KafkaAvroPublishingActor {
 
-  private def makeUUID = ByteBufferUtils.uuidToBytes(UUID.randomUUID)
+  private def makeUUID = ByteBufferUtils.uuidToBytes(UUIDs.timeBased())
 
-  case class Publish(message: Array[Byte], key: Array[Byte] = makeUUID)
+  case class Publish(message: Array[Byte], key: Array[Byte] = makeUUID, attempt: Int = 0)
 
-  case class PublishAvro(record: GenericRecord, key: Array[Byte] = makeUUID)
+  case class PublishAvro(record: GenericRecord, key: Array[Byte] = makeUUID, attempt: Int = 0)
 
 }
