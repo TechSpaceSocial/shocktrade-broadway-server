@@ -1,7 +1,7 @@
 package com.ldaniels528.broadway.core.actors.kafka
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor.{StartConsuming, StopConsuming, startConsumer}
+import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor.{MessageReceived, StartConsuming, StopConsuming}
 import com.ldaniels528.trifecta.io.kafka.{Broker, KafkaMicroConsumer}
 import com.ldaniels528.trifecta.io.zookeeper.ZKProxy
 
@@ -20,7 +20,12 @@ class KafkaConsumingActor(zkConnectionString: String) extends Actor with ActorLo
   override def receive = {
     case StartConsuming(topic, target) =>
       log.info(s"Registering topic '$topic' to $target...")
-      registrations.putIfAbsent((topic, target), startConsumer(zkConnectionString, topic, target))
+      registrations.putIfAbsent((topic, target), startConsumer(topic, target)) foreach {
+        _ foreach { _ =>
+          log.info(s"$topic: Watch has ended for $target")
+          registrations.remove((topic, target))
+        }
+      }
 
     case StopConsuming(topic, target) =>
       log.info(s"Canceling registration of topic '$topic' to $target...")
@@ -32,17 +37,8 @@ class KafkaConsumingActor(zkConnectionString: String) extends Actor with ActorLo
     case message =>
       unhandled(message)
   }
-}
 
-/**
- * Kafka Message Consuming Actor Singleton
- * @author Lawrence Daniels <lawrence.daniels@gmail.com>
- */
-object KafkaConsumingActor {
-
-  private def startConsumer(zkConnectionString: String,
-                                   topic: String,
-                                   target: ActorRef)(implicit ec: ExecutionContext): Future[Seq[Unit]] = {
+  private def startConsumer(topic: String, target: ActorRef)(implicit ec: ExecutionContext): Future[Seq[Unit]] = {
     implicit val zk = ZKProxy(zkConnectionString)
     val brokerList = KafkaMicroConsumer.getBrokerList
     val brokers = (0 to brokerList.size - 1) zip brokerList map { case (n, b) => Broker(b.host, b.port, n) }
@@ -50,6 +46,13 @@ object KafkaConsumingActor {
       target ! MessageReceived(topic, md.partition, md.offset, md.key, md.message)
     }
   }
+}
+
+/**
+ * Kafka Message Consuming Actor Singleton
+ * @author Lawrence Daniels <lawrence.daniels@gmail.com>
+ */
+object KafkaConsumingActor {
 
   /**
    * Registers the given recipient actor to receive messages from the given topic. The recipient

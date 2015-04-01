@@ -7,9 +7,9 @@ import akka.util.Timeout
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor.{MessageReceived, StartConsuming}
+import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
+import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
 import com.ldaniels528.broadway.server.ServerConfig
-import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor
-import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor._
 import com.ldaniels528.trifecta.util.OptionHelper._
 import com.mongodb.casbah.Imports.{DBObject => Q, _}
 import com.shocktrade.datacenter.narratives.yahoo.CsvQuotesKafkaToMongoDBNarrative.CSVQuoteTransformActor
@@ -56,7 +56,7 @@ object CsvQuotesKafkaToMongoDBNarrative {
     override def receive = {
       case m: MessageReceived =>
         val startTime = System.currentTimeMillis()
-        val line = new String(m.message)
+        val line = new String(m.message, "UTF8")
         line.split("[|]").toList match {
           case symbol :: params :: csv :: Nil =>
             val quote = YFStockQuoteService.parseQuote(symbol, params, csv, startTime)
@@ -72,7 +72,7 @@ object CsvQuotesKafkaToMongoDBNarrative {
       import akka.pattern.ask
 
       val newSymbol = record.newSymbol
-      val oldSymbol = record.oldSymbol
+      val oldSymbol = Option(record.symbol) // record.oldSymbol
 
       // if a new symbol is being created, we need to make sure the base record
       // is created before any updates occur.
@@ -98,13 +98,14 @@ object CsvQuotesKafkaToMongoDBNarrative {
 
     private def createOrUpdate(record: YFStockQuote) = {
       val newSymbol = record.newSymbol
-      val oldSymbol = record.oldSymbol
+      val oldSymbol = Option(record.symbol) // record.oldSymbol
       val theSymbol = newSymbol ?? oldSymbol
 
       Upsert(
         StockQuotesTable,
         query = Q("symbol" -> theSymbol),
         doc = $set(
+          "exchange" -> record.exchange,
           "lastTrade" -> record.lastTrade,
           "tradeDate" -> record.tradeDate,
           "tradeDateTime" -> record.tradeDateTime,

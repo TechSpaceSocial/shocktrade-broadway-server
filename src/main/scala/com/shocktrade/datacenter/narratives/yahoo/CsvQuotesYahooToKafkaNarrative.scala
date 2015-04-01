@@ -4,9 +4,9 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.{Publish, PublishAvro}
+import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
+import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
 import com.ldaniels528.broadway.server.ServerConfig
-import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor
-import com.ldaniels528.broadway.thirdparty.mongodb.MongoDBActor._
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.datacenter.narratives.yahoo.CsvQuotesYahooToKafkaNarrative.{QuoteLookupAndPublishActor, QuoteSymbolsActor, RequestQuotes, topic}
@@ -83,7 +83,7 @@ object CsvQuotesYahooToKafkaNarrative {
       YahooFinanceServices.getStockQuote(symbol, parameters) foreach { quote =>
         val builder = com.shocktrade.avro.CSVQuoteRecord.newBuilder()
         AvroConversion.copy(quote, builder)
-        target ! PublishAvro(builder.build())
+        target ! PublishAvro(record = builder.build())
       }
     }
 
@@ -92,7 +92,7 @@ object CsvQuotesYahooToKafkaNarrative {
         quotes foreach { quote =>
           val builder = com.shocktrade.avro.CSVQuoteRecord.newBuilder()
           AvroConversion.copy(quote, builder)
-          target ! PublishAvro(builder.build())
+          target ! PublishAvro(record = builder.build())
         }
       }
     }

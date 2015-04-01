@@ -8,7 +8,7 @@
 
     <narrative id="OTCBBDailyUpdateNarrative" class="com.shocktrade.datacenter.narratives.OTCBBDailyUpdateNarrative" />
 
-    <!-- Locations -->
+    <!-- Location Triggers -->
 
     <location id="Combiner" path="/Users/ldaniels/broadway/incoming/combine">
         <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative" />

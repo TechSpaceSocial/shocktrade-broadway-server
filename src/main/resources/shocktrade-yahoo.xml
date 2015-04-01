@@ -13,14 +13,14 @@
     <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.schedules.ScheduleOnce"/>
     <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
 
-    <!-- Schedule Trigger -->
+    <!-- Schedule Triggers -->
 
     <trigger
-            schedule-ref="ContinuousSchedule"
+            schedule-ref="TradingSchedule"
             narrative-ref="CsvQuotesToKafkaNarrative" />
 
     <trigger
-            schedule-ref="ScheduleOnce"
+            schedule-ref="ContinuousSchedule"
             narrative-ref="CsvQuotesKafkaToMongoDBNarrative" />
 
     <!-- Location Triggers -->

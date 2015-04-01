@@ -32,19 +32,17 @@ class KafkaPublishingActor(topic: String, brokers: String) extends Actor with Ac
   private def publish(topic: String, key: Array[Byte], message: Array[Byte], attempts: Int = 1) {
     publisher.publish(topic, key, message) match {
       case Success(_) =>
-      case Failure(e: Exception) =>
-        if (!retryPublish(key, message, attempts)) {
-          log.error(s"Failed ($attempts times) to get a connection to publish message", e)
-        }
       case Failure(e) =>
-        log.error(s"Failed to publish message: ${e.getMessage}", e)
+        if (!retryPublish(key, message, attempts)) {
+          log.error(s"Failed ($attempts times) to publish message: ${e.getMessage} (${e.getClass.getName}})")
+        }
     }
   }
 
   private def retryPublish(key: Array[Byte], message: Array[Byte], attempts: Int): Boolean = {
     val retry = attempts < 3
     if (retry) {
-      self ! Publish(key, message, attempts + 1)
+      self ! Publish(message, key, attempts + 1)
     }
     retry
   }
@@ -57,7 +55,7 @@ class KafkaPublishingActor(topic: String, brokers: String) extends Actor with Ac
  */
 object KafkaPublishingActor {
 
-  private def makeUUID = ByteBufferUtils.uuidToBytes(UUIDs.timeBased())
+  def makeUUID = ByteBufferUtils.uuidToBytes(UUIDs.timeBased())
 
   case class Publish(message: Array[Byte], key: Array[Byte] = makeUUID, attempt: Int = 0)
 
