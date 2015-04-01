@@ -6,8 +6,8 @@ import java.text.SimpleDateFormat
 import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
-import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
-import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor._
+import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
+import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor._
 import com.ldaniels528.broadway.core.actors.{FileReadingActor, ThrottlingActor, ThroughputCalculatingActor}
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.server.ServerConfig
@@ -29,7 +29,7 @@ with KafkaConstants {
   val fileReader = addActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor
-  val kafkaPublisher = addActor(new KafkaAvroPublishingActor(eodDataTopic, brokers))
+  val kafkaPublisher = addActor(new KafkaPublishingActor(eodDataTopic, brokers))
 
   // let's calculate the throughput of the Kafka publishing actor
   var ticker = 0

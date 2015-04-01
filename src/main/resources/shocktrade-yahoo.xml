@@ -2,41 +2,28 @@
 <narrative-config version="1.0">
     <!-- Narratives -->
 
-    <narrative id="CsvQuotesToKafkaNarrative" class="com.shocktrade.datacenter.narratives.yahoo.CsvQuotesToKafkaNarrative"/>
+    <narrative id="CsvQuotesToKafkaNarrative" class="com.shocktrade.datacenter.narratives.yahoo.CsvQuotesYahooToKafkaNarrative"/>
     <narrative id="CsvQuotesKafkaToMongoDBNarrative" class="com.shocktrade.datacenter.narratives.yahoo.CsvQuotesKafkaToMongoDBNarrative"/>
     <narrative id="KeyStatsImportNarrative" class="com.shocktrade.datacenter.narratives.yahoo.YFKeyStatsImportNarrative"/>
-    <narrative id="QuoteImportNarrative" class="com.shocktrade.datacenter.narratives.yahoo.YFStockQuoteImportNarrative"/>
-
-    <!-- Resource -->
-
-    <resource id="QuoteSymbolResource" class="com.shocktrade.datacenter.resources.QuoteSymbolResource"/>
-    <resource id="KafkaQuoteTopicResource" class="com.shocktrade.datacenter.resources.KafkaQuoteTopicResource"/>
 
     <!-- Schedules -->
 
     <schedule id="ContinuousSchedule" class="com.shocktrade.datacenter.schedules.ContinuousSchedule"/>
-    <schedule id="NonRunningSchedule" class="com.shocktrade.datacenter.schedules.NonRunningSchedule"/>
+    <schedule id="NonRunningSchedule" class="com.ldaniels528.broadway.core.schedules.NonRunningSchedule"/>
+    <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.schedules.ScheduleOnce"/>
     <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
 
-    <!-- Trigger -->
-
-    <trigger
-            schedule-ref="TradingSchedule"
-            narrative-ref="CsvQuotesToKafkaNarrative"
-            resource-ref="QuoteSymbolResource"/>
+    <!-- Schedule Trigger -->
 
     <trigger
             schedule-ref="ContinuousSchedule"
+            narrative-ref="CsvQuotesToKafkaNarrative" />
+
+    <trigger
+            schedule-ref="ScheduleOnce"
             narrative-ref="CsvQuotesKafkaToMongoDBNarrative" />
 
-    <!-- Locations -->
-
-    <location id="CSVQuotes" path="/Users/ldaniels/broadway/incoming/csvQuotes">
-        <feed match="exact" name="AMEX.txt" narrative-ref="QuoteImportNarrative"/>
-        <feed match="exact" name="NASDAQ.txt" narrative-ref="QuoteImportNarrative"/>
-        <feed match="exact" name="NYSE.txt" narrative-ref="QuoteImportNarrative"/>
-        <feed match="exact" name="OTCBB.txt" narrative-ref="QuoteImportNarrative"/>
-    </location>
+    <!-- Location Triggers -->
 
     <location id="KeyStats" path="/Users/ldaniels/broadway/incoming/keyStats">
         <feed match="exact" name="AMEX.txt" narrative-ref="KeyStatsImportNarrative"/>

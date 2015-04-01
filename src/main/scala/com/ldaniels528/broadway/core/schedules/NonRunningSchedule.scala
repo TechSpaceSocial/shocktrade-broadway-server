@@ -1,6 +1,4 @@
-package com.shocktrade.datacenter.schedules
-
-import com.ldaniels528.broadway.core.schedules.Scheduling
+package com.ldaniels528.broadway.core.schedules
 
 /**
  * Represents a non-running schedule

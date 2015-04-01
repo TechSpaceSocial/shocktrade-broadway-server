@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor._
-import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
+import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.resources.ReadableResource
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
@@ -26,7 +26,7 @@ with KafkaConstants {
   lazy val fileReader = addActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor for stock quotes
-  lazy val keyStatsPublisher = addActor(new KafkaAvroPublishingActor(keyStatsTopic, brokers))
+  lazy val keyStatsPublisher = addActor(new KafkaPublishingActor(keyStatsTopic, brokers))
 
   // create a stock quote lookup actor
   lazy val keyStatsLookup = addActor(new KeyStatisticsLookupActor(keyStatsPublisher))

@@ -1,8 +1,8 @@
-package com.ldaniels528.broadway.core.actors.kafka.avro
+package com.ldaniels528.broadway.core.actors.kafka
 
 import akka.actor.{Actor, ActorLogging}
 import com.datastax.driver.core.utils.UUIDs
-import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor._
+import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.{PublishAvro, Publish}
 import com.ldaniels528.trifecta.io.ByteBufferUtils
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.ldaniels528.trifecta.io.kafka.{Broker, KafkaPublisher}
@@ -14,7 +14,7 @@ import scala.util.{Failure, Success}
  * Kafka-Avro Publishing Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class KafkaAvroPublishingActor(topic: String, brokers: String) extends Actor with ActorLogging {
+class KafkaPublishingActor(topic: String, brokers: String) extends Actor with ActorLogging {
   private val publisher = KafkaPublisher(Broker.parseBrokerList(brokers))
 
   override def preStart() = publisher.open()
@@ -55,7 +55,7 @@ class KafkaAvroPublishingActor(topic: String, brokers: String) extends Actor wit
  * Kafka-Avro Publishing Actor Singleton
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-object KafkaAvroPublishingActor {
+object KafkaPublishingActor {
 
   private def makeUUID = ByteBufferUtils.uuidToBytes(UUIDs.timeBased())
 

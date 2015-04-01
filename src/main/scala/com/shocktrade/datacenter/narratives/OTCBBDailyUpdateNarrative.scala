@@ -7,7 +7,7 @@ import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
-import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor
+import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.resources.ReadableResource
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
@@ -25,7 +25,7 @@ with KafkaConstants {
   lazy val fileReader = addActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor for OTC transactions
-  lazy val otcPublisher = addActor(new KafkaAvroPublishingActor(otcTranHistoryTopic, brokers))
+  lazy val otcPublisher = addActor(new KafkaPublishingActor(otcTranHistoryTopic, brokers))
 
   // create an OTC/BB data conversion actor
   lazy val otcConverter = addActor(new OTCBBEnrichmentActor(otcPublisher))
