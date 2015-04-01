@@ -1,7 +1,7 @@
-package com.ldaniels528.broadway.core.actors.eventsourced
+package com.shocktrade.actors
 
-import akka.actor.{Props, ActorSystem}
-import akka.persistence.{SnapshotOffer, PersistentActor}
+import akka.actor.{ActorSystem, Props}
+import akka.persistence.{PersistentActor, SnapshotOffer}
 import org.slf4j.LoggerFactory
 
 /**
