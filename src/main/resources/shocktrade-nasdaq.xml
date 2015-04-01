@@ -1,19 +1,14 @@
 <?xml version="1.0" ?>
-<narrative-config>
+<narrative-config version="1.0">
+    <!-- Narratives -->
 
-    <narrative id="CombiningNarrative" class="com.shocktrade.narratives.CombiningNarrative" />
+    <narrative id="CombiningNarrative" class="com.shocktrade.datacenter.narratives.CombiningNarrative" />
 
-    <narrative id="EodDataImportNarrative" class="com.shocktrade.narratives.EodDataImportNarrative" />
+    <narrative id="EodDataImportNarrative" class="com.shocktrade.datacenter.narratives.EodDataImportNarrative" />
 
-    <narrative id="KeyStatsImportNarrative" class="com.shocktrade.narratives.YFKeyStatsImportNarrative" />
+    <narrative id="OTCBBDailyUpdateNarrative" class="com.shocktrade.datacenter.narratives.OTCBBDailyUpdateNarrative" />
 
-    <narrative id="QuoteImportNarrative" class="com.shocktrade.narratives.YFStockQuoteImportNarrative" />
-
-    <narrative id="OTCBBDailyUpdateNarrative" class="com.shocktrade.narratives.OTCBBDailyUpdateNarrative" />
-
-    <schedule id="TradingSchedule" class="com.shocktrade.schedules.TradingSchedule" />
-
-    <trigger schedule-ref="TradingSchedule" narrative-ref="QuoteImportNarrative" />
+    <!-- Locations -->
 
     <location id="Combiner" path="/Users/ldaniels/broadway/incoming/combine">
         <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative" />
@@ -22,25 +17,11 @@
         <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative" />
     </location>
 
-    <location id="CSVQuotes" path="/Users/ldaniels/broadway/incoming/csvQuotes">
-        <feed match="exact" name="AMEX.txt" narrative-ref="QuoteImportNarrative" />
-        <feed match="exact" name="NASDAQ.txt" narrative-ref="QuoteImportNarrative" />
-        <feed match="exact" name="NYSE.txt" narrative-ref="QuoteImportNarrative" />
-        <feed match="exact" name="OTCBB.txt" narrative-ref="QuoteImportNarrative" />
-    </location>
-
     <location id="EodData" path="/Users/ldaniels/broadway/incoming/tradingHistory">
         <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
         <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
         <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
         <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative" />
-    </location>
-
-    <location id="KeyStats" path="/Users/ldaniels/broadway/incoming/keyStats">
-        <feed match="exact" name="AMEX.txt" narrative-ref="KeyStatsImportNarrative" />
-        <feed match="exact" name="NASDAQ.txt" narrative-ref="KeyStatsImportNarrative" />
-        <feed match="exact" name="NYSE.txt" narrative-ref="KeyStatsImportNarrative" />
-        <feed match="exact" name="OTCBB.txt" narrative-ref="KeyStatsImportNarrative" />
     </location>
 
     <!--

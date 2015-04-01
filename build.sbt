@@ -9,7 +9,7 @@ organization := "com.ldaniels528"
 
 version := "0.4"
 
-scalaVersion := "2.11.5"
+scalaVersion := "2.11.6"
 
 javacOptions ++= Seq("-Xlint:deprecation", "-Xlint:unchecked", "-source", "1.7", "-target", "1.7", "-g:vars")
 
@@ -45,7 +45,7 @@ Seq(sbtavro.SbtAvro.avroSettings: _*)
 
 (stringType in avroConfig) := "String"
 
-(javaSource in avroConfig) := file("src/main/java")
+//(javaSource in avroConfig) := file("target/java7/src_managed")
 
 (sourceDirectory in avroConfig) := file("src/main/resources/avro")
 

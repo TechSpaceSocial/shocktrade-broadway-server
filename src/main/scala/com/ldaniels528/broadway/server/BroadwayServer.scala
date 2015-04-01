@@ -12,7 +12,6 @@ import com.ldaniels528.broadway.core.util.FileHelper._
 import com.ldaniels528.broadway.core.util.{FileMonitor, HttpMonitor}
 import com.ldaniels528.broadway.server.BroadwayServer._
 import com.ldaniels528.trifecta.util.OptionHelper._
-import com.shocktrade.resources.QuoteSymbolResource
 import org.slf4j.LoggerFactory
 
 import scala.collection.concurrent.TrieMap
@@ -68,10 +67,11 @@ class BroadwayServer(config: ServerConfig) {
       system.scheduler.schedule(0.seconds, 5.minute, new Runnable {
         override def run() {
           tc.triggers foreach { trigger =>
-            if(trigger.isReady(System.currentTimeMillis())) {
+            if (trigger.isReady(System.currentTimeMillis())) {
               rt.getNarrative(config, trigger.narrative) foreach { narrative =>
                 logger.info(s"Invoking narrative '${trigger.narrative.id}'...")
-                processingActor ! RunJob(narrative, new QuoteSymbolResource("CSVQuotes"))
+                val resource = trigger.resource.getOrElse(LoopbackResource(s"T${System.currentTimeMillis}"))
+                processingActor ! RunJob(narrative, resource)
               }
             }
           }

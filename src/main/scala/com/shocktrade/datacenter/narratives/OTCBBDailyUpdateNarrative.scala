@@ -1,4 +1,4 @@
-package com.shocktrade.narratives
+package com.shocktrade.datacenter.narratives
 
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -12,8 +12,8 @@ import com.ldaniels528.broadway.core.resources.ReadableResource
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.shocktrade.avro.OTCTransHistoryRecord
-import com.shocktrade.helpers.ResourceTracker
-import com.shocktrade.narratives.OTCBBDailyUpdateNarrative.OTCBBEnrichmentActor
+import com.shocktrade.datacenter.helpers.ResourceTracker
+import com.shocktrade.datacenter.narratives.OTCBBDailyUpdateNarrative.OTCBBEnrichmentActor
 
 /**
  * OTC Bulletin Board Daily Update Narrative

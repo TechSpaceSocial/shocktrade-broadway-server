@@ -1,7 +1,5 @@
 package com.ldaniels528.broadway.core.actors.kafka.avro
 
-import java.net.SocketTimeoutException
-
 import akka.actor.{Actor, ActorLogging}
 import com.datastax.driver.core.utils.UUIDs
 import com.ldaniels528.broadway.core.actors.kafka.avro.KafkaAvroPublishingActor._
@@ -34,14 +32,21 @@ class KafkaAvroPublishingActor(topic: String, brokers: String) extends Actor wit
   private def publish(topic: String, key: Array[Byte], message: Array[Byte], attempts: Int = 1) {
     publisher.publish(topic, key, message) match {
       case Success(_) =>
-      case Failure(e: java.net.ConnectException | SocketTimeoutException) =>
-        if (attempts < 3) {
-          self ! Publish(key, message, attempts + 1)
+      case Failure(e: Exception) =>
+        if (!retryPublish(key, message, attempts)) {
+          log.error(s"Failed ($attempts times) to get a connection to publish message", e)
         }
-        else log.error(s"Failed ($attempts times) to get a connection to publish message", e)
       case Failure(e) =>
         log.error(s"Failed to publish message: ${e.getMessage}", e)
     }
+  }
+
+  private def retryPublish(key: Array[Byte], message: Array[Byte], attempts: Int): Boolean = {
+    val retry = attempts < 3
+    if (retry) {
+      self ! Publish(key, message, attempts + 1)
+    }
+    retry
   }
 
 }

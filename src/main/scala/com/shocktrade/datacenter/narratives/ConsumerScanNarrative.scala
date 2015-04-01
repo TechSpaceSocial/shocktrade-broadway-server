@@ -1,4 +1,4 @@
-package com.shocktrade.narratives
+package com.shocktrade.datacenter.narratives
 
 import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
@@ -7,7 +7,7 @@ import com.ldaniels528.trifecta.io.kafka.KafkaMicroConsumer.{MessageData, _}
 import com.ldaniels528.trifecta.io.kafka.{Broker, KafkaMicroConsumer}
 import com.ldaniels528.trifecta.io.zookeeper.ZKProxy
 import com.ldaniels528.trifecta.util.ResourceHelper._
-import com.shocktrade.narratives.ConsumerScanNarrative._
+import com.shocktrade.datacenter.narratives.ConsumerScanNarrative._
 import kafka.common.TopicAndPartition
 import org.slf4j.LoggerFactory
 

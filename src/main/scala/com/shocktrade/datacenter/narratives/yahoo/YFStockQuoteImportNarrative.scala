@@ -1,4 +1,4 @@
-package com.shocktrade.narratives
+package com.shocktrade.datacenter.narratives.yahoo
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
@@ -7,7 +7,8 @@ import com.ldaniels528.broadway.core.actors.kafka.avro._
 import com.ldaniels528.broadway.core.resources.IterableResource
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
-import com.shocktrade.narratives.YFStockQuoteImportNarrative.StockQuoteLookupActor
+import com.shocktrade.datacenter.narratives.KafkaConstants
+import com.shocktrade.datacenter.narratives.yahoo.YFStockQuoteImportNarrative.StockQuoteLookupActor
 import com.shocktrade.services.{YFStockQuoteService, YahooFinanceServices}
 
 import scala.concurrent.ExecutionContext
@@ -27,9 +28,7 @@ class YFStockQuoteImportNarrative(config: ServerConfig) extends BroadwayNarrativ
 
   onStart {
     case resource: IterableResource[String] =>
-      resource.iterator.sliding(32, 32) foreach { symbols =>
-        quoteLookup ! symbols.toArray
-      }
+      resource.iterator.sliding(32, 32) foreach (quoteLookup ! _.toArray)
     case _ =>
       throw new IllegalStateException(s"A ${classOf[IterableResource[_]].getName} was expected")
   }

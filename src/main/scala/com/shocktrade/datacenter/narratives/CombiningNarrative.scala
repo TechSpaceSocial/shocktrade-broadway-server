@@ -1,4 +1,4 @@
-package com.shocktrade.narratives
+package com.shocktrade.datacenter.narratives
 
 import akka.actor.Actor
 import com.ldaniels528.broadway.BroadwayNarrative
@@ -6,7 +6,7 @@ import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{BinaryBlock, CopyText, TextLine}
 import com.ldaniels528.broadway.core.resources.{RandomAccessFileResource, ReadableResource}
 import com.ldaniels528.broadway.server.ServerConfig
-import com.shocktrade.narratives.CombiningNarrative.FileWritingActor
+import com.shocktrade.datacenter.narratives.CombiningNarrative.FileWritingActor
 
 /**
  * File Combining Narrative

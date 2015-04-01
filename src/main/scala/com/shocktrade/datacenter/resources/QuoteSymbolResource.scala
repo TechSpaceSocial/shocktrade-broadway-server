@@ -1,4 +1,4 @@
-package com.shocktrade.resources
+package com.shocktrade.datacenter.resources
 
 import com.ldaniels528.broadway.core.resources.IterableResource
 import com.mongodb.ServerAddress
@@ -13,7 +13,7 @@ import scala.util.{Failure, Success, Try}
  * Quote Symbol Resource
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class QuoteSymbolResource(name: String) extends IterableResource[String] {
+case class QuoteSymbolResource(name: String) extends IterableResource[String] {
   private lazy val logger = LoggerFactory.getLogger(getClass)
   private lazy val mconn = getConnection(List(
     new ServerAddress("dev528", 27017),

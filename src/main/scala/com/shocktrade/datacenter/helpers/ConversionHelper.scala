@@ -1,4 +1,4 @@
-package com.shocktrade.helpers
+package com.shocktrade.datacenter.helpers
 
 import java.lang.{Double => JDouble, Long => JLong}
 import java.text.SimpleDateFormat

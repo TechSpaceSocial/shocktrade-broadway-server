@@ -1,4 +1,4 @@
-package com.shocktrade.narratives
+package com.shocktrade.datacenter.narratives
 
 /**
  * Kafka Topic Constants

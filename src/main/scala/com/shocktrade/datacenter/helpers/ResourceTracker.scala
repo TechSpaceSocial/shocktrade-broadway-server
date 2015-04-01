@@ -1,4 +1,4 @@
-package com.shocktrade.helpers
+package com.shocktrade.datacenter.helpers
 
 import com.ldaniels528.broadway.core.resources.ReadableResource
 import org.slf4j.LoggerFactory
