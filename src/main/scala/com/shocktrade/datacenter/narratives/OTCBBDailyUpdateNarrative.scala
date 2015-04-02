@@ -25,7 +25,7 @@ with KafkaConstants {
   lazy val fileReader = addActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor for OTC transactions
-  lazy val otcPublisher = addActor(new KafkaPublishingActor(otcTranHistoryTopic, brokers))
+  lazy val otcPublisher = addActor(new KafkaPublishingActor(zkHost))
 
   // create an OTC/BB data conversion actor
   lazy val otcConverter = addActor(new OTCBBEnrichmentActor(otcPublisher))
@@ -71,10 +71,10 @@ object OTCBBDailyUpdateNarrative {
         ResourceTracker.stop(resource)
 
       case TextLine(resource, lineNo, line, tokens) =>
-        val items = tokens map (s => if (s == "" || s == "**") None else Some(s))
+        val items = tokens map (s => if (s.isEmpty || s == "**") None else Some(s))
         val builder = OTCTransHistoryRecord.newBuilder()
         val transaction = OTCDailyRecord(
-          items(0) map sdf_ts.parse,
+          items.head map sdf_ts.parse,
           items(1),
           items(2),
           items(3),

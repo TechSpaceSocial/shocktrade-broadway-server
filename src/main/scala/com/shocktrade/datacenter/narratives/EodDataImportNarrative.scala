@@ -29,7 +29,7 @@ with KafkaConstants {
   val fileReader = addActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor
-  val kafkaPublisher = addActor(new KafkaPublishingActor(eodDataTopic, brokers))
+  val kafkaPublisher = addActor(new KafkaPublishingActor(zkHost))
 
   // let's calculate the throughput of the Kafka publishing actor
   var ticker = 0
@@ -45,7 +45,7 @@ with KafkaConstants {
   val throttler = addActor(new ThrottlingActor(throughputCalc, rateLimit = 250, enabled = true))
 
   // create a EOD data transformation actor
-  val eodDataToAvroActor = addActor(new EodDataToAvroActor(throttler))
+  val eodDataToAvroActor = addActor(new EodDataToAvroActor(eodDataTopic, throttler))
 
   onStart {
     case resource: ReadableResource =>
@@ -66,7 +66,7 @@ object EodDataImportNarrative {
    * EODData-to-Avro Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class EodDataToAvroActor(kafkaActor: ActorRef) extends Actor {
+  class EodDataToAvroActor(topic: String, kafkaActor: ActorRef) extends Actor {
     private val sdf = new SimpleDateFormat("yyyyMMdd")
 
     override def receive = {
@@ -79,7 +79,7 @@ object EodDataImportNarrative {
       case TextLine(resource, lineNo, line, tokens) =>
         // skip the header line
         if (lineNo != 1) {
-          kafkaActor ! PublishAvro(record = toAvro(resource, tokens))
+          kafkaActor ! PublishAvro(topic, toAvro(resource, tokens))
         }
 
       case message =>

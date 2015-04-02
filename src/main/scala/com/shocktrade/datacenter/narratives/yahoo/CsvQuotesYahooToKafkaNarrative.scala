@@ -26,10 +26,10 @@ with KafkaConstants with MongoDBConstants {
 
   // create a Kafka publishing actor for stock quotes
   // NOTE: the Kafka parallelism is equal to the number of brokers
-  lazy val quotePublisher = addActor(new KafkaPublishingActor(topic, brokers), parallelism = 6)
+  lazy val quotePublisher = addActor(new KafkaPublishingActor(zkHost), parallelism = 6)
 
   // create a stock quote lookup actor
-  lazy val quoteLookup = addActor(new QuoteLookupAndPublishActor(quotePublisher), parallelism = 1)
+  lazy val quoteLookup = addActor(new QuoteLookupAndPublishActor(topic, quotePublisher), parallelism = 1)
 
   // create a stock symbols requesting actor
   lazy val symbolsRequester = addActor(new QuoteSymbolsActor(mongoReader, quoteLookup), parallelism = 1)
@@ -53,20 +53,22 @@ object CsvQuotesYahooToKafkaNarrative {
    * Stock Quote Lookup and Publish Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class QuoteLookupAndPublishActor(target: ActorRef) extends Actor with ActorLogging {
+  class QuoteLookupAndPublishActor(topic: String, target: ActorRef) extends Actor with ActorLogging {
 
     import context.dispatcher
 
     override def receive = {
       case symbol: String => transmit(symbol)
       case symbols: Array[String] => transmit(symbols)
-      case message => unhandled(message)
+      case message =>
+        log.error(s"Unhandled message $message")
+        unhandled(message)
     }
 
     private def transmit(symbol: String) {
       YFStockQuoteService.getCSVData(Seq(symbol), parameters) foreach {
         _ foreach { line =>
-          target ! Publish(message = s"$symbol|$parameters|$line".getBytes("UTF8"))
+          target ! Publish(topic, message = s"$symbol|$parameters|$line".getBytes("UTF8"))
         }
       }
     }
@@ -74,7 +76,7 @@ object CsvQuotesYahooToKafkaNarrative {
     private def transmit(symbols: Array[String]) {
       YFStockQuoteService.getCSVData(symbols, parameters) foreach { lines =>
         (symbols zip lines.toSeq) foreach { case (symbol, line) =>
-          target ! Publish(message = s"$symbol|$parameters|$line".getBytes("UTF8"))
+          target ! Publish(topic, message = s"$symbol|$parameters|$line".getBytes("UTF8"))
         }
       }
     }
@@ -83,7 +85,7 @@ object CsvQuotesYahooToKafkaNarrative {
       YahooFinanceServices.getStockQuote(symbol, parameters) foreach { quote =>
         val builder = com.shocktrade.avro.CSVQuoteRecord.newBuilder()
         AvroConversion.copy(quote, builder)
-        target ! PublishAvro(record = builder.build())
+        target ! PublishAvro(topic, record = builder.build())
       }
     }
 
@@ -92,7 +94,7 @@ object CsvQuotesYahooToKafkaNarrative {
         quotes foreach { quote =>
           val builder = com.shocktrade.avro.CSVQuoteRecord.newBuilder()
           AvroConversion.copy(quote, builder)
-          target ! PublishAvro(record = builder.build())
+          target ! PublishAvro(topic, record = builder.build())
         }
       }
     }

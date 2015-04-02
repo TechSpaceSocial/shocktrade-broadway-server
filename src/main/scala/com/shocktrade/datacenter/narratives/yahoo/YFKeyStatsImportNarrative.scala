@@ -5,6 +5,7 @@ import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor._
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
+import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.PublishAvro
 import com.ldaniels528.broadway.core.resources.ReadableResource
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
@@ -26,10 +27,10 @@ with KafkaConstants {
   lazy val fileReader = addActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor for stock quotes
-  lazy val keyStatsPublisher = addActor(new KafkaPublishingActor(keyStatsTopic, brokers))
+  lazy val keyStatsPublisher = addActor(new KafkaPublishingActor(zkHost))
 
   // create a stock quote lookup actor
-  lazy val keyStatsLookup = addActor(new KeyStatisticsLookupActor(keyStatsPublisher))
+  lazy val keyStatsLookup = addActor(new KeyStatisticsLookupActor(keyStatsTopic, keyStatsPublisher))
 
   onStart {
     case resource: ReadableResource =>
@@ -50,7 +51,7 @@ object YFKeyStatsImportNarrative {
    * Key Statistics Lookup Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class KeyStatisticsLookupActor(target: ActorRef)(implicit ec: ExecutionContext) extends Actor {
+  class KeyStatisticsLookupActor(topic: String, target: ActorRef)(implicit ec: ExecutionContext) extends Actor {
     override def receive = {
       case OpeningFile(resource) =>
         ResourceTracker.start(resource)
@@ -63,7 +64,7 @@ object YFKeyStatsImportNarrative {
           YahooFinanceServices.getKeyStatistics(symbol) foreach { keyStatistics =>
             val builder = com.shocktrade.avro.KeyStatisticsRecord.newBuilder()
             AvroConversion.copy(keyStatistics, builder)
-            target ! builder.build()
+            target ! PublishAvro(topic, builder.build())
           }
         }
 

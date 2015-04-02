@@ -2,11 +2,13 @@ package com.ldaniels528.broadway.core.actors.kafka
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor.{MessageReceived, StartConsuming, StopConsuming}
-import com.ldaniels528.trifecta.io.kafka.{Broker, KafkaMicroConsumer}
+import com.ldaniels528.broadway.core.actors.kafka.KafkaHelper._
+import com.ldaniels528.trifecta.io.kafka.KafkaMicroConsumer
 import com.ldaniels528.trifecta.io.zookeeper.ZKProxy
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 /**
  * Kafka Message Consuming Actor
@@ -29,22 +31,22 @@ class KafkaConsumingActor(zkConnectionString: String) extends Actor with ActorLo
 
     case StopConsuming(topic, target) =>
       log.info(s"Canceling registration of topic '$topic' to $target...")
-      registrations.get((topic, target)) match {
-        case Some(task) => // TODO cancel the future
-        case None =>
+      registrations.get((topic, target)) foreach { task =>
+        // TODO cancel the future
       }
 
     case message =>
+      log.error(s"Unhandled message $message")
       unhandled(message)
   }
 
   private def startConsumer(topic: String, target: ActorRef)(implicit ec: ExecutionContext): Future[Seq[Unit]] = {
     implicit val zk = ZKProxy(zkConnectionString)
-    val brokerList = KafkaMicroConsumer.getBrokerList
-    val brokers = (0 to brokerList.size - 1) zip brokerList map { case (n, b) => Broker(b.host, b.port, n) }
-    KafkaMicroConsumer.observe(topic, brokers) { md =>
+    val task = KafkaMicroConsumer.observe(topic, zk.getBrokerList) { md =>
       target ! MessageReceived(topic, md.partition, md.offset, md.key, md.message)
     }
+    task.foreach(_ => Try(zk.close()))
+    task
   }
 }
 
