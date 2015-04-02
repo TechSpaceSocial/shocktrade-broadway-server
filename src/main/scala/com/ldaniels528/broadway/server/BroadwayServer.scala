@@ -70,8 +70,7 @@ class BroadwayServer(config: ServerConfig) {
             if (trigger.isReady(System.currentTimeMillis())) {
               rt.getNarrative(config, trigger.narrative) foreach { narrative =>
                 logger.info(s"Invoking narrative '${trigger.narrative.id}'...")
-                val resource = trigger.resource.getOrElse(LoopbackResource(s"T${System.currentTimeMillis}"))
-                processingActor ! RunJob(narrative, resource)
+                processingActor ! RunJob(narrative, trigger.resource)
               }
             }
           }
@@ -139,7 +138,7 @@ class BroadwayServer(config: ServerConfig) {
           move(file, wipFile)
 
           // start the topology using the file as its input source
-          processingActor ! RunJob(topology, FileResource(wipFile.getAbsolutePath))
+          processingActor ! RunJob(topology, Option(FileResource(wipFile.getAbsolutePath)))
 
         case Failure(e) =>
           if (!reported.contains(td.id)) {
@@ -192,10 +191,8 @@ object BroadwayServer {
    */
   class TopologyProcessingActor(config: ServerConfig) extends Actor {
     override def receive = {
-      case RunJob(narrative, resource) =>
-        narrative.start(resource)
-      case message =>
-        unhandled(message)
+      case RunJob(narrative, resource) => narrative.start(resource)
+      case message => unhandled(message)
     }
   }
 
@@ -204,6 +201,6 @@ object BroadwayServer {
    * @param narrative the given [[BroadwayNarrative]]
    * @param resource the given [[Resource]]
    */
-  case class RunJob(narrative: BroadwayNarrative, resource: Resource)
+  case class RunJob(narrative: BroadwayNarrative, resource: Option[Resource])
 
 }

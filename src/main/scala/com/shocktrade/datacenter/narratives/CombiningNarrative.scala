@@ -20,11 +20,13 @@ class CombiningNarrative(config: ServerConfig) extends BroadwayNarrative(config,
   lazy val fileWriter = addActor(new FileWritingActor(config, RandomAccessFileResource("/Users/ldaniels/NASDAQ-bundle.txt")))
 
   onStart {
-    case resource: ReadableResource =>
-      // start the processing by submitting a request to the file reader actor
-      fileReader ! CopyText(resource, fileWriter)
-    case _ =>
-      throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
+    _ foreach {
+      case resource: ReadableResource =>
+        // start the processing by submitting a request to the file reader actor
+        fileReader ! CopyText(resource, fileWriter)
+      case _ =>
+        throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
+    }
   }
 }
 

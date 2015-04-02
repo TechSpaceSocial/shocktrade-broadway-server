@@ -11,7 +11,7 @@ import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.util.OptionHelper._
-import com.mongodb.casbah.Imports.{DBObject => Q, _}
+import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.datacenter.narratives.yahoo.CsvQuotesKafkaToMongoDBNarrative.CSVQuoteTransformActor
 import com.shocktrade.datacenter.narratives.{KafkaConstants, MongoDBConstants}
 import com.shocktrade.services.YFStockQuoteService
@@ -84,8 +84,8 @@ object CsvQuotesKafkaToMongoDBNarrative {
 
           // if the symbol was changed  update the old record
           newSymbol.foreach { symbol =>
-            target ! Upsert(StockQuotesTable, query = Q("symbol" -> oldSymbol), doc = Q("symbol" -> oldSymbol))
-            target ! Upsert(StockQuotesTable, query = Q("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
+            target ! Upsert(StockQuotesTable, query = O("symbol" -> oldSymbol), doc = O("symbol" -> oldSymbol))
+            target ! Upsert(StockQuotesTable, query = O("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
           }
         }
       }
@@ -96,37 +96,37 @@ object CsvQuotesKafkaToMongoDBNarrative {
       }
     }
 
-    private def createOrUpdate(record: YFStockQuote) = {
-      val newSymbol = record.newSymbol
-      val oldSymbol = Option(record.symbol) // record.oldSymbol
+    private def createOrUpdate(q: YFStockQuote) = {
+      val newSymbol = q.newSymbol
+      val oldSymbol = Option(q.symbol) // q.oldSymbol
       val theSymbol = newSymbol ?? oldSymbol
 
       Upsert(
         StockQuotesTable,
-        query = Q("symbol" -> theSymbol),
+        query = O("symbol" -> theSymbol),
         doc = $set(
-          "exchange" -> record.exchange,
-          "lastTrade" -> record.lastTrade,
-          "tradeDate" -> record.tradeDate,
-          "tradeDateTime" -> record.tradeDateTime,
-          "ask" -> record.ask,
-          "bid" -> record.bid,
-          "prevClose" -> record.prevClose,
-          "open" -> record.open,
-          "close" -> record.close,
-          "change" -> record.change,
-          "changePct" -> record.changePct,
-          "high" -> record.high,
-          "low" -> record.low,
-          "spread" -> computeSpread(record.high, record.low),
-          "volume" -> record.volume,
+          "exchange" -> q.exchange,
+          "lastTrade" -> q.lastTrade,
+          "tradeDate" -> q.tradeDate,
+          "tradeDateTime" -> q.tradeDateTime,
+          "ask" -> q.ask,
+          "bid" -> q.bid,
+          "prevClose" -> q.prevClose,
+          "open" -> q.open,
+          "close" -> q.close,
+          "change" -> q.change,
+          "changePct" -> q.changePct ?? computeChangePct(q.prevClose, q.lastTrade),
+          "high" -> q.high,
+          "low" -> q.low,
+          "spread" -> computeSpread(q.high, q.low),
+          "volume" -> q.volume,
 
           // classification fields
           "assetType" -> "Common Stock",
           "assetClass" -> "Equity",
 
           // administrative fields
-          "yfDynRespTimeMsec" -> record.responseTimeMsec,
+          "yfDynRespTimeMsec" -> q.responseTimeMsec,
           "yfDynLastUpdated" -> new Date(),
           "lastUpdated" -> new Date()))
     }
@@ -136,6 +136,14 @@ object CsvQuotesKafkaToMongoDBNarrative {
         hi <- high
         lo <- low
       } yield if (lo != 0.0d) 100d * (hi - lo) / lo else 0.0d
+    }
+
+    private def computeChangePct(prevClose: Option[Double], lastTrade: Option[Double]) = {
+      for {
+        prev <- prevClose
+        last <- lastTrade
+        diff = last - prev
+      } yield if (diff != 0) 100d * (diff / prev) else 0.0d
     }
 
   }

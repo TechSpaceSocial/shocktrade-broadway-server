@@ -33,11 +33,13 @@ with KafkaConstants {
   lazy val keyStatsLookup = addActor(new KeyStatisticsLookupActor(keyStatsTopic, keyStatsPublisher))
 
   onStart {
-    case resource: ReadableResource =>
-      // start the processing by submitting a request to the file reader actor
-      fileReader ! CopyText(resource, keyStatsLookup, handler = Delimited("[\t]"))
-    case _ =>
-      throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
+    _ foreach {
+      case resource: ReadableResource =>
+        // start the processing by submitting a request to the file reader actor
+        fileReader ! CopyText(resource, keyStatsLookup, handler = Delimited("[\t]"))
+      case _ =>
+        throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
+    }
   }
 }
 

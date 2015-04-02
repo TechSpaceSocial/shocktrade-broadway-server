@@ -14,7 +14,7 @@ import scala.reflect.ClassTag
  */
 case class BroadwayNarrative(config: ServerConfig, name: String) {
   protected implicit val executionContext = config.system.dispatcher
-  private var executable: Option[Resource => Unit] = None
+  private var executable: Option[Option[Resource] => Unit] = None
 
   /**
    * Adds a new actor to the narrative
@@ -29,14 +29,14 @@ case class BroadwayNarrative(config: ServerConfig, name: String) {
    * Setups the actions that will occur upon start of the topology
    * @param block the executable block
    */
-  def onStart(block: Resource => Unit)(implicit ec: ExecutionContext) = {
+  def onStart(block: Option[Resource] => Unit)(implicit ec: ExecutionContext) = {
     executable = Option(block)
   }
 
   /**
    * Starts executing the topology
    */
-  def start(resource: Resource) {
+  def start(resource: Option[Resource]) {
     executable.foreach(_(resource))
   }
 

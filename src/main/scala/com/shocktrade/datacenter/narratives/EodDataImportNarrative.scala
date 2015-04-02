@@ -48,11 +48,13 @@ with KafkaConstants {
   val eodDataToAvroActor = addActor(new EodDataToAvroActor(eodDataTopic, throttler))
 
   onStart {
-    case resource: ReadableResource =>
-      // start the processing by submitting a request to the file reader actor
-      fileReader ! CopyText(resource, eodDataToAvroActor, handler = Delimited("[,]"))
-    case _ =>
-      throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
+    _ foreach {
+      case resource: ReadableResource =>
+        // start the processing by submitting a request to the file reader actor
+        fileReader ! CopyText(resource, eodDataToAvroActor, handler = Delimited("[,]"))
+      case _ =>
+        throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
+    }
   }
 }
 
