@@ -1,17 +1,17 @@
-ShockTrade Server
-=================
-ShockTrade Server is the *replacement* processing back-end of the ShockTrade.com web site, which is currently implemented
-via a home-grown file ingestion system and Storm. ShockTrade Server is being built atop of Broadway (https://github.com/ldaniels528/broadway)
+ShockTrade DataCenter
+=====================
+ShockTrade DataCenter is the *replacement* processing back-end of the ShockTrade.com web site, which is currently implemented
+via a home-grown file ingestion system and Storm. ShockTrade DataCenter is being built atop of [Broadway](https://github.com/ldaniels528/broadway)
 as a distributed Actor-based processing system.
 
-## The ShockTrade Server Narrative
+## The ShockTrade DataCenter Anthology
 
-The proceeding example is a Broadway narrative performs the following flow:
+The proceeding example is a Broadway anthology performs the following flow:
 
 * Extracts stock symbols from a tabbed-delimited file.
 * Retrieves stock quotes for each symbol.
 * Converts the stock quotes to <a href="http://avro.apache.org/" target="avro">Avro</a> records.
-* Publishes each Avro record to a Kafka topic (shocktrade.quotes.yahoo.avro)
+* Publishes each Avro record to a Kafka topic (eoddata.tradinghistory.avro)
 
 Below is the Broadway narrative that implements the flow described above:
 
@@ -40,58 +40,59 @@ The class below is an optional custom actor that will perform the stock symbol l
 record to the Kafka publishing actor (a built-in component).
 
 ```scala
-class StockQuoteLookupActor(target: ActorRef)(implicit ec: ExecutionContext) extends Actor {
-  private val parameters = YFStockQuoteService.getParams(
-    "symbol", "exchange", "lastTrade", "tradeDate", "tradeTime", "ask", "bid", "change", "changePct",
-    "prevClose", "open", "close", "high", "low", "volume", "marketCap", "errorMessage")
-
-  override def receive = {
-    case OpeningFile(resource) =>
-      ResourceTracker.start(resource)
-
-    case ClosingFile(resource) =>
-      ResourceTracker.stop(resource)
-
-    case TextLine(resource, lineNo, line, tokens) =>
-      tokens.headOption foreach { symbol =>
-        YahooFinanceServices.getStockQuote(symbol, parameters) foreach { quote =>
-          val builder = com.shocktrade.avro.CSVQuoteRecord.newBuilder()
-          AvroConversion.copy(quote, builder)
-          target ! builder.build()
-        }
+  class EodDataImportNarrative(config: ServerConfig, id: String, props: Properties)
+    extends BroadwayNarrative(config, id, props) {
+    private lazy val logger = LoggerFactory.getLogger(getClass)
+  
+    // extract the properties we need
+    val kafkaTopic = props.getOrDie("kafka.topic")
+    val zkConnect = props.getOrDie("zookeeper.connect")
+  
+    // create a file reader actor to read lines from the incoming resource
+    lazy val fileReader = prepareActor(new FileReadingActor(config), parallelism = 10)
+  
+    // create a Kafka publishing actor
+    lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 10)
+  
+    // create a EOD data transformation actor
+    val eodDataToAvroActor = prepareActor(new EodDataToAvroActor(kafkaTopic, kafkaPublisher))
+  
+    onStart {
+      _ foreach {
+        case resource: ReadableResource =>
+          // start the processing by submitting a request to the file reader actor
+          fileReader ! CopyText(resource, eodDataToAvroActor, handler = Delimited("[,]"))
+        case _ =>
+          throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
       }
-
-    case message =>
-      unhandled(message)
+    }
   }
-}
 ```
 
-```scala
-trait KafkaConstants {
-  val eodDataTopic = "shocktrade.eoddata.yahoo.avro"
-  val keyStatsTopic = "shocktrade.keystats.yahoo.avro"
-  val quotesTopic = "shocktrade.quotes.yahoo.avro"
-
-  val zkHost = "dev501:2181"
-  val brokers = "dev501:9091,dev501:9092,dev501:9093,dev501:9094,dev501:9095,dev501:9096"
-}
-```
-
-And an XML file to describe how files will be mapped to the narrative:
+And an XML file to describe how files will be mapped to the anthology:
 
 ```xml
-<narrative-config>
+<?xml version="1.0" ?>
+<anthology id="EodData" version="1.0">
+    <!-- Narratives -->
 
-    <narrative id="QuoteImportNarrative" class="com.shocktrade.topologies.StockQuoteImportNarrative" />
+    <narrative id="EodDataImportNarrative"
+               class="com.shocktrade.datacenter.narratives.EodDataImportNarrative">
+        <properties>
+            <property key="kafka.topic">eoddata.tradinghistory.avro</property>
+            <property key="zookeeper.connect">dev801:2181</property>
+        </properties>
+    </narrative>
 
-    <location id="CSVQuotes" path="/Users/ldaniels/broadway/incoming/csvQuotes">
-        <feed match="exact" name="AMEX.txt" narrative-ref="QuoteImportNarrative" />
-        <feed match="exact" name="NASDAQ.txt" narrative-ref="QuoteImportNarrative" />
-        <feed match="exact" name="NYSE.txt" narrative-ref="QuoteImportNarrative" />
-        <feed match="exact" name="OTCBB.txt" narrative-ref="QuoteImportNarrative" />
+    <!-- Location Triggers -->
+
+    <location id="EodData" path="/Users/ldaniels/broadway/incoming/tradingHistory">
+        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
     </location>
 
-</narrative-config>
+</anthology>
 ```
 

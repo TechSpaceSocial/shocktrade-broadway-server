@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<narrative-config version="1.0">
+<anthology id="Yahoo Data" version="1.0">
     <!-- Schedules -->
 
     <schedule id="ContinuousSchedule" class="com.shocktrade.datacenter.schedules.ContinuousSchedule"/>
@@ -49,4 +49,4 @@
             schedule-ref="NonRunningSchedule"
             narrative-ref="CsvQuotesKafkaToMongoDBNarrative"/>
 
-</narrative-config>
+</anthology>

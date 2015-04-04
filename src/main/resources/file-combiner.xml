@@ -1,0 +1,18 @@
+<?xml version="1.0" ?>
+<anthology id="File Combiner" version="1.0">
+    <!-- Narratives -->
+
+    <narrative id="CombiningNarrative" class="com.shocktrade.datacenter.narratives.CombiningNarrative">
+        <properties />
+    </narrative>
+
+    <!-- Location Triggers -->
+
+    <location id="Combiner" path="/Users/ldaniels/broadway/incoming/combine">
+        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative"/>
+        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative"/>
+        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative"/>
+        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="CombiningNarrative"/>
+    </location>
+
+</anthology>

@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<anthology id="EodData" version="1.0">
+    <!-- Narratives -->
+
+    <narrative id="EodDataImportNarrative"
+               class="com.shocktrade.datacenter.narratives.EodDataImportNarrative">
+        <properties>
+            <property key="kafka.topic">eoddata.tradinghistory.avro</property>
+            <property key="zookeeper.connect">dev801:2181</property>
+        </properties>
+    </narrative>
+
+    <!-- Location Triggers -->
+
+    <location id="EodData" path="/Users/ldaniels/broadway/incoming/tradingHistory">
+        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+    </location>
+
+</anthology>

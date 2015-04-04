@@ -46,12 +46,12 @@ class FileMonitor(system: ActorSystem) {
    * @param callback the given callback function
    */
   @throws[IOException]
-  def listenForFiles(directory: File)(callback: File => Unit) = {
+  def listenForFiles(watcherName: String, directory: File)(callback: File => Unit) = {
     // create the watcher service, and register for new file events
     val path = Paths.get(directory.getAbsolutePath)
     val watcher = path.getFileSystem.newWatchService()
     path.register(watcher, StandardWatchEventKinds.ENTRY_CREATE)
-    logger.info(s"Watching for new files in '${directory.getAbsolutePath}'...")
+    logger.info(s"$watcherName is watching for new files in '${directory.getAbsolutePath}'...")
 
     // process any files that exist on startup
     processDirectory(directory, callback)

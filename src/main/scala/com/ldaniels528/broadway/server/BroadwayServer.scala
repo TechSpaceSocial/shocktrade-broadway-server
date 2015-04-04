@@ -1,6 +1,6 @@
 package com.ldaniels528.broadway.server
 
-import java.io.File
+import java.io.{FilenameFilter, File}
 import java.net.URL
 
 import com.ldaniels528.broadway.core.actors.NarrativeProcessingActor
@@ -35,7 +35,7 @@ class BroadwayServer(config: ServerConfig) {
   import config.archivingActor
 
   // create the system actors
-  private lazy val processingActor = config.addActor(new NarrativeProcessingActor(config))
+  private lazy val processingActor = config.addActor(new NarrativeProcessingActor(config), parallelism = 10)
 
   // setup the HTTP server
   private val httpServer = config.httpInfo.map(hi => new BroadwayHttpServer(host = hi.host, port = hi.port))
@@ -58,16 +58,15 @@ class BroadwayServer(config: ServerConfig) {
       listener.start()
     }
 
-    // load the topology configurations
-    val topologyConfigs = NarrativeConfig.loadNarrativeConfigs(config.getTopologiesDirectory)
-
-    // setup listeners for all configured locations and triggers
-    topologyConfigs foreach { tc =>
+    // load the anthologies
+    val anthologies = loadAnthologies(config.getAnthologiesDirectory)
+    anthologies foreach { anthology =>
+      logger.info(s"Configuring anthology '${anthology.id}'...")
 
       // setup scheduled jobs
       system.scheduler.schedule(0.seconds, 5.minute, new Runnable {
         override def run() {
-          tc.triggers foreach { trigger =>
+          anthology.triggers foreach { trigger =>
             if (trigger.isReady(System.currentTimeMillis())) {
               rt.getNarrative(config, trigger.narrative) foreach { narrative =>
                 logger.info(s"Invoking narrative '${trigger.narrative.id}'...")
@@ -79,16 +78,16 @@ class BroadwayServer(config: ServerConfig) {
       })
 
       // watch the "incoming" directories for processing files
-      tc.locations foreach { location =>
-        logger.info(s"Configuring location ${location.id}...")
+      anthology.locations foreach { location =>
+        logger.info(s"Configuring location '${location.id}'...")
         location match {
           case site@FileLocation(id, path, feeds) =>
-            fileMonitor.listenForFiles(directory = new File(path))(handleIncomingFile(site, _))
+            fileMonitor.listenForFiles(id, directory = new File(path))(handleIncomingFile(site, _))
 
           // watch for HTTP files
           case site@HttpLocation(id, path, feeds) =>
             val urls = feeds.map(f => s"${site.path}${f.name}")
-            httpMonitor.listenForResources(urls)(handleIncomingResource(site, _))
+            httpMonitor.listenForResources(id, urls)(handleIncomingResource(site, _))
 
           case site =>
             logger.warn(s"Listening is not supported by location '${site.id}'")
@@ -97,7 +96,7 @@ class BroadwayServer(config: ServerConfig) {
     }
 
     // watch the "completed" directory for archiving files
-    fileMonitor.listenForFiles(config.getCompletedDirectory)(archivingActor ! _)
+    fileMonitor.listenForFiles("Broadway", config.getCompletedDirectory)(archivingActor ! _)
     ()
   }
 
@@ -121,6 +120,19 @@ class BroadwayServer(config: ServerConfig) {
    */
   private def handleIncomingResource(site: HttpLocation, url: URL) {
     logger.info(s"url: $url")
+  }
+
+  /**
+   * Loads all anthologies from the given directory
+   * @param directory the given directory
+   * @return the collection of successfully parsed [[Anthology]] objects
+   */
+  private def loadAnthologies(directory: File): Seq[Anthology] = {
+    logger.info(s"Searching for narrative configuration files in '${directory.getAbsolutePath}'...")
+    val xmlFile = directory.listFiles(new FilenameFilter {
+      override def accept(dir: File, name: String): Boolean = name.toLowerCase.endsWith(".xml")
+    })
+    xmlFile.toSeq flatMap (f => AnthologyParser.parse(FileResource(f.getAbsolutePath)))
   }
 
   /**
@@ -168,7 +180,7 @@ class BroadwayServer(config: ServerConfig) {
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 object BroadwayServer {
-  private val Version = "0.7"
+  private val Version = "0.8"
 
   /**
    * Enables command line execution

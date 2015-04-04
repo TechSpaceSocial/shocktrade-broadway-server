@@ -36,6 +36,8 @@ case class ServerConfig(props: java.util.Properties, httpInfo: Option[HttpInfo])
 
   def getRootDirectory = new File(props.asOpt[String](BaseDir).orDie(s"Required property '$BaseDir' is missing"))
 
+  def getAnthologiesDirectory = new File(getRootDirectory, "anthologies")
+
   def getArchiveDirectory = new File(getRootDirectory, "archive")
 
   def getCompletedDirectory = new File(getRootDirectory, "completed")
@@ -44,8 +46,6 @@ case class ServerConfig(props: java.util.Properties, httpInfo: Option[HttpInfo])
 
   def getIncomingDirectory = new File(getRootDirectory, "incoming")
 
-  def getTopologiesDirectory = new File(getRootDirectory, "topologies")
-
   def getWorkDirectory = new File(getRootDirectory, "work")
 
   /**
@@ -53,7 +53,7 @@ case class ServerConfig(props: java.util.Properties, httpInfo: Option[HttpInfo])
    */
   def init() = Seq(
     getArchiveDirectory, getCompletedDirectory, getFailedDirectory,
-    getIncomingDirectory, getTopologiesDirectory, getWorkDirectory) foreach ensureExistence
+    getIncomingDirectory, getAnthologiesDirectory, getWorkDirectory) foreach ensureExistence
 
 }
 

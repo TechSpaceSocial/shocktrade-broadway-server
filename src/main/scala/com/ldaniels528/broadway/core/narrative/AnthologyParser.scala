@@ -14,25 +14,27 @@ import scala.util.{Failure, Success, Try}
 import scala.xml.{Node, XML}
 
 /**
- * Topology Configuration Parser Singleton
+ * Anthology Configuration Parser
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-object NarrativeConfigParser {
+object AnthologyParser {
 
   /**
    * Parses the given resource and returns an option of a narrative configuration
    * @param resource the given [[ReadableResource]]
-   * @return an option of a [[NarrativeConfig]]
+   * @return an option of a [[Anthology]]
    */
-  def parse(resource: ReadableResource): Option[NarrativeConfig] = {
+  def parse(resource: ReadableResource): Option[Anthology] = {
     resource.getInputStream map { in =>
       val doc = XML.load(in)
+      val id = doc.getAttr("anthology", "id")
       val narratives = parseNarratives(doc)
       val schedules = parseSchedules(doc)
       val resources = parseResources(doc)
       val triggers = parseTriggers(doc, narratives, schedules, resources)
 
-      new NarrativeConfig(
+      new Anthology(
+        id,
         locations = parseLocations(narratives, doc),
         propertySets = parseNamedPropertiesRef(doc),
         schedules,
