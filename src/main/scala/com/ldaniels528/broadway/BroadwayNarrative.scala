@@ -19,13 +19,13 @@ case class BroadwayNarrative(config: ServerConfig, name: String, props: Properti
   private var executable: Option[Option[Resource] => Unit] = None
 
   /**
-   * Adds a new actor to the narrative
+   * Prepares a new actor for execution within the narrative
    * @param actor the given [[Actor]]
    * @param parallelism the number of actors to create
    * @tparam T the actor type
    * @return an actor reference
    */
-  def prepareActor[T <: Actor : ClassTag](actor: => T, parallelism: Int = 1) = config.addActor(actor, parallelism)
+  def prepareActor[T <: Actor : ClassTag](actor: => T, parallelism: Int = 1) = config.prepareActor(actor, parallelism)
 
   /**
    * Setups the actions that will occur upon start of the topology

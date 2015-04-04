@@ -1,9 +1,8 @@
 package com.ldaniels528.broadway.server
 
-import java.io.{FilenameFilter, File}
+import java.io.{File, FilenameFilter}
 import java.net.URL
 
-import com.ldaniels528.broadway.core.actors.NarrativeProcessingActor
 import com.ldaniels528.broadway.core.actors.NarrativeProcessingActor.RunJob
 import com.ldaniels528.broadway.core.location.{FileLocation, HttpLocation, Location}
 import com.ldaniels528.broadway.core.narrative._
@@ -32,10 +31,7 @@ class BroadwayServer(config: ServerConfig) {
   private val httpMonitor = new HttpMonitor(system)
   private val reported = TrieMap[String, Throwable]()
 
-  import config.archivingActor
-
-  // create the system actors
-  private lazy val processingActor = config.addActor(new NarrativeProcessingActor(config), parallelism = 10)
+  import config.{archivingActor, processingActor}
 
   // setup the HTTP server
   private val httpServer = config.httpInfo.map(hi => new BroadwayHttpServer(host = hi.host, port = hi.port))
@@ -102,13 +98,13 @@ class BroadwayServer(config: ServerConfig) {
 
   /**
    * Handles the the given incoming file
-   * @param directory the given [[FileLocation]]
+   * @param location the given [[FileLocation]]
    * @param file the given incoming [[File]]
    */
-  private def handleIncomingFile(directory: Location, file: File) {
-    directory.findFeed(file.getName) match {
+  private def handleIncomingFile(location: Location, file: File) {
+    location.findFeed(file.getName) match {
       case Some(feed) => processFeed(feed, file)
-      case None => noMappedProcess(directory, file)
+      case None => noMappedProcess(location, file)
     }
     ()
   }
@@ -136,30 +132,30 @@ class BroadwayServer(config: ServerConfig) {
   }
 
   /**
-   * Processes the given feed via a topology
+   * Processes the given feed via a narrative
    * @param feed the given [[Feed]]
    * @param file the given [[File]]
    */
   private def processFeed(feed: Feed, file: File) = {
-    feed.topology foreach { td =>
-      // lookup the topology
+    // TODO what about feeds that have no narrative?
+    feed.narrative foreach { td =>
+      // lookup the narrative
       rt.getNarrative(config, td) match {
-        case Success(topology) =>
+        case Success(narrative) =>
           val fileName = file.getName
-          logger.info(s"${topology.name}: Moving file '$fileName' to '${config.getWorkDirectory}' for processing...")
+          logger.info(s"${narrative.name}: Moving file '$fileName' to '${config.getWorkDirectory}' for processing...")
           val wipFile = new File(config.getWorkDirectory, fileName)
           move(file, wipFile)
 
           // start the topology using the file as its input source
-          processingActor ! RunJob(topology, Option(FileResource(wipFile.getAbsolutePath)))
+          processingActor ! RunJob(narrative, Option(FileResource(wipFile.getAbsolutePath)))
 
         case Failure(e) =>
           if (!reported.contains(td.id)) {
-            logger.error(s"${td.id}: Topology could not be instantiated", e)
+            logger.error(s"${td.id}: Narrative could not be instantiated", e)
             reported += td.id -> e
           }
       }
-
     }
   }
 

@@ -12,6 +12,30 @@ The proceeding example is a Broadway anthology performs the following flow:
 * Converts the stock quotes to <a href="http://avro.apache.org/" target="avro">Avro</a> records.
 * Publishes each Avro record to a Kafka topic (eoddata.tradinghistory.avro)
 
+The following XML file describes how files will be mapped to the narrative:
+
+```xml
+<?xml version="1.0" ?>
+<anthology id="EodData" version="1.0">
+
+    <narrative id="EodDataImportNarrative"
+               class="com.shocktrade.datacenter.narratives.EodDataImportNarrative">
+        <properties>
+            <property key="kafka.topic">eoddata.tradinghistory.avro</property>
+            <property key="zookeeper.connect">dev801:2181</property>
+        </properties>
+    </narrative>
+
+    <location id="EodData" path="/Users/ldaniels/broadway/incoming/tradingHistory">
+        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
+    </location>
+
+</anthology>
+```
+
 Below is the Broadway narrative that implements the flow described above:
 
 ```scala
@@ -96,27 +120,25 @@ to the Kafka publishing actor (a built-in component).
     }
 ```
 
-And an XML file to describe how files will be mapped to the narrative:
+And finally, the following is the Avro definition that we've used to encode the stock quote record:
 
-```xml
-<?xml version="1.0" ?>
-<anthology id="EodData" version="1.0">
-
-    <narrative id="EodDataImportNarrative"
-               class="com.shocktrade.datacenter.narratives.EodDataImportNarrative">
-        <properties>
-            <property key="kafka.topic">eoddata.tradinghistory.avro</property>
-            <property key="zookeeper.connect">dev801:2181</property>
-        </properties>
-    </narrative>
-
-    <location id="EodData" path="/Users/ldaniels/broadway/incoming/tradingHistory">
-        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-    </location>
-
-</anthology>
+```javascript
+    {
+        "type": "record",
+        "name": "EodDataRecord",
+        "namespace": "com.shocktrade.avro",
+        "fields":[
+            { "name": "symbol", "type":"string", "doc":"stock symbol" },
+            { "name": "exchange", "type":["null", "string"], "doc":"stock exchange", "default":null },
+            { "name": "tradeDate", "type":["null", "long"], "doc":"last sale date", "default":null },
+            { "name": "open", "type":["null", "double"], "doc":"open price", "default":null },
+            { "name": "close", "type":["null", "double"], "doc":"close price", "default":null },
+            { "name": "high", "type":["null", "double"], "doc":"day's high price", "default":null },
+            { "name": "low", "type":["null", "double"], "doc":"day's low price", "default":null },
+            { "name": "volume", "type":["null", "long"], "doc":"day's volume", "default":null }
+        ],
+        "doc": "A schema for EodData quotes"
+    }
 ```
+
 

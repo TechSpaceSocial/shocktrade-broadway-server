@@ -10,7 +10,6 @@ import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.shocktrade.datacenter.actors.EodDataToAvroActor
-import org.slf4j.LoggerFactory
 
 /**
  * EODData.com Import Narrative
@@ -18,7 +17,6 @@ import org.slf4j.LoggerFactory
  */
 class EodDataImportNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props) {
-  private lazy val logger = LoggerFactory.getLogger(getClass)
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
