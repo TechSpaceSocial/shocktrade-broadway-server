@@ -64,7 +64,7 @@ class FileMonitor(system: ActorSystem) {
           val events = watchKey.pollEvents()
           if (events.nonEmpty) {
             for (event <- events) {
-              if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
+              if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE || event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
                 // get a reference to the new file
                 val file = new File(directory, event.context().toString)
                 logger.info(s"Waiting to consume '${file.getName}' (${directory.getAbsolutePath})...")

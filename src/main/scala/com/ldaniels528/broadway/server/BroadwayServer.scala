@@ -3,8 +3,8 @@ package com.ldaniels528.broadway.server
 import java.io.File
 import java.net.URL
 
-import akka.actor.Actor
-import com.ldaniels528.broadway.BroadwayNarrative
+import com.ldaniels528.broadway.core.actors.NarrativeProcessingActor
+import com.ldaniels528.broadway.core.actors.NarrativeProcessingActor.RunJob
 import com.ldaniels528.broadway.core.location.{FileLocation, HttpLocation, Location}
 import com.ldaniels528.broadway.core.narrative._
 import com.ldaniels528.broadway.core.resources._
@@ -32,9 +32,10 @@ class BroadwayServer(config: ServerConfig) {
   private val httpMonitor = new HttpMonitor(system)
   private val reported = TrieMap[String, Throwable]()
 
+  import config.archivingActor
+
   // create the system actors
-  private lazy val archivingActor = config.archivingActor
-  private lazy val processingActor = config.addActor(new TopologyProcessingActor(config))
+  private lazy val processingActor = config.addActor(new NarrativeProcessingActor(config))
 
   // setup the HTTP server
   private val httpServer = config.httpInfo.map(hi => new BroadwayHttpServer(host = hi.host, port = hi.port))
@@ -184,23 +185,5 @@ object BroadwayServer {
     }
     new BroadwayServer(config.orDie("No configuration file (broadway-config.xml) found")).start()
   }
-
-  /**
-   * This is an internal use actor that is responsible for processing topologies
-   * @author Lawrence Daniels <lawrence.daniels@gmail.com>
-   */
-  class TopologyProcessingActor(config: ServerConfig) extends Actor {
-    override def receive = {
-      case RunJob(narrative, resource) => narrative.start(resource)
-      case message => unhandled(message)
-    }
-  }
-
-  /**
-   * This message causes the the given narrative to be invoked; consuming the given resource
-   * @param narrative the given [[BroadwayNarrative]]
-   * @param resource the given [[Resource]]
-   */
-  case class RunJob(narrative: BroadwayNarrative, resource: Option[Resource])
 
 }
