@@ -3,9 +3,9 @@ package com.shocktrade.datacenter.narratives
 import java.util.Properties
 
 import com.ldaniels528.broadway.BroadwayNarrative
+import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
-import com.ldaniels528.broadway.core.actors.{FileReadingActor, ThroughputCalculatingActor}
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
@@ -31,15 +31,12 @@ class EodDataImportNarrative(config: ServerConfig, id: String, props: Properties
   lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 10)
 
   // create a EOD data transformation actor
-  val eodDataToAvroActor = prepareActor(new EodDataToAvroActor(kafkaTopic, kafkaPublisher))
+  lazy val eodDataToAvroActor = prepareActor(new EodDataToAvroActor(kafkaTopic, kafkaPublisher), parallelism = 10)
 
   onStart {
-    _ foreach {
-      case resource: ReadableResource =>
-        // start the processing by submitting a request to the file reader actor
-        fileReader ! CopyText(resource, eodDataToAvroActor, handler = Delimited("[,]"))
-      case _ =>
-        throw new IllegalStateException(s"A ${classOf[ReadableResource].getName} was expected")
-    }
+    case Some(resource: ReadableResource) =>
+      // start the processing by submitting a request to the file reader actor
+      fileReader ! CopyText(resource, eodDataToAvroActor, handler = Delimited("[,]"))
+    case _ =>
   }
 }
