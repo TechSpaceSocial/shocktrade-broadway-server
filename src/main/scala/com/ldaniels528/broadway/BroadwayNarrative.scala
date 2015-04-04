@@ -1,5 +1,7 @@
 package com.ldaniels528.broadway
 
+import java.util.Properties
+
 import akka.actor.Actor
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.server.ServerConfig
@@ -12,7 +14,7 @@ import scala.reflect.ClassTag
  * This class describes a narrative; or flow for a given data process
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-case class BroadwayNarrative(config: ServerConfig, name: String) {
+case class BroadwayNarrative(config: ServerConfig, name: String, props: Properties) {
   protected implicit val executionContext = config.system.dispatcher
   private var executable: Option[Option[Resource] => Unit] = None
 
@@ -23,7 +25,7 @@ case class BroadwayNarrative(config: ServerConfig, name: String) {
    * @tparam T the actor type
    * @return an actor reference
    */
-  def addActor[T <: Actor : ClassTag](actor: => T, parallelism: Int = 1) = config.addActor(actor, parallelism)
+  def prepareActor[T <: Actor : ClassTag](actor: => T, parallelism: Int = 1) = config.addActor(actor, parallelism)
 
   /**
    * Setups the actions that will occur upon start of the topology

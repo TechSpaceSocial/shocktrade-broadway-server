@@ -1,16 +1,18 @@
 package com.shocktrade.datacenter.narratives.yahoo
 
+import java.util.Properties
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.{Publish, PublishAvro}
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
+import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.mongodb.casbah.Imports.{DBObject => O, _}
-import com.shocktrade.datacenter.narratives.yahoo.CsvQuotesYahooToKafkaNarrative.{QuoteLookupAndPublishActor, QuoteSymbolsActor, RequestQuotes, topic}
-import com.shocktrade.datacenter.narratives.{KafkaConstants, MongoDBConstants}
+import com.shocktrade.datacenter.narratives.yahoo.CsvQuotesYahooToKafkaNarrative.{QuoteLookupAndPublishActor, QuoteSymbolsActor, RequestQuotes}
 import com.shocktrade.services.{YFStockQuoteService, YahooFinanceServices}
 import org.joda.time.DateTime
 
@@ -18,21 +20,28 @@ import org.joda.time.DateTime
  * CSV Stock Quotes: Yahoo! Finance to Kafka Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class CsvQuotesYahooToKafkaNarrative(config: ServerConfig) extends BroadwayNarrative(config, "CSV Quotes: Yahoo to Kafka")
-with KafkaConstants with MongoDBConstants {
+class CsvQuotesYahooToKafkaNarrative(config: ServerConfig, id: String, props: Properties)
+  extends BroadwayNarrative(config, id, props) {
+
+  // extract the properties we need
+  val kafkaTopic = props.getOrDie("kafka.topic")
+  val mongoReplicas = props.getOrDie("mongo.replicas")
+  val mongoDatabase = props.getOrDie("mongo.database")
+  val mongoCollection = props.getOrDie("mongo.collection")
+  val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a MongoDB actor for retrieving stock quotes
-  lazy val mongoReader = addActor(MongoDBActor(parseServerList(MongoDBServers), ShockTradeDB), parallelism = 1)
+  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 1)
 
   // create a Kafka publishing actor for stock quotes
   // NOTE: the Kafka parallelism is equal to the number of brokers
-  lazy val quotePublisher = addActor(new KafkaPublishingActor(zkHost), parallelism = 6)
+  lazy val quotePublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 6)
 
   // create a stock quote lookup actor
-  lazy val quoteLookup = addActor(new QuoteLookupAndPublishActor(topic, quotePublisher), parallelism = 1)
+  lazy val quoteLookup = prepareActor(new QuoteLookupAndPublishActor(kafkaTopic, quotePublisher), parallelism = 1)
 
   // create a stock symbols requesting actor
-  lazy val symbolsRequester = addActor(new QuoteSymbolsActor(mongoReader, quoteLookup), parallelism = 1)
+  lazy val symbolsRequester = prepareActor(new QuoteSymbolsActor(mongoReader, mongoCollection, quoteLookup), parallelism = 1)
 
   onStart { resource =>
     symbolsRequester ! RequestQuotes
@@ -44,7 +53,6 @@ with KafkaConstants with MongoDBConstants {
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 object CsvQuotesYahooToKafkaNarrative {
-  val topic = "quotes.yahoo.csv"
   val parameters = YFStockQuoteService.getParams(
     "symbol", "exchange", "lastTrade", "tradeDate", "tradeTime", "change", "changePct", "prevClose", "open", "close",
     "high", "low", "high52Week", "low52Week", "volume", "marketCap", "errorMessage", "ask", "askSize", "bid", "bidSize")
@@ -105,13 +113,13 @@ object CsvQuotesYahooToKafkaNarrative {
    * Stock Quote Symbol Retrieval Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class QuoteSymbolsActor(mongoReader: ActorRef, quoteLookup: ActorRef) extends Actor with ActorLogging with MongoDBConstants {
+  class QuoteSymbolsActor(mongoReader: ActorRef, mongoCollection: String, quoteLookup: ActorRef) extends Actor with ActorLogging {
     override def receive = {
       // when a receive the request quotes message, I shall fire a find message to the MongoDB actor
       case RequestQuotes =>
         val _5_mins_ago = new DateTime().minusMinutes(5)
         mongoReader ! Find(
-          name = StockQuotes,
+          name = mongoCollection,
           query = O("active" -> true, "yfDynUpdates" -> true) ++ $or("yfDynLastUpdated" $exists false, "yfDynLastUpdated" $lte _5_mins_ago),
           fields = O("symbol" -> 1)
         )

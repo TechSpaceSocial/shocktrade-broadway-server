@@ -2,6 +2,7 @@ package com.shocktrade.datacenter.narratives
 
 import java.lang.{Double => JDouble, Long => JLong}
 import java.text.SimpleDateFormat
+import java.util.Properties
 
 import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
@@ -10,6 +11,7 @@ import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor._
 import com.ldaniels528.broadway.core.actors.{FileReadingActor, ThrottlingActor, ThroughputCalculatingActor}
 import com.ldaniels528.broadway.core.resources._
+import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.util.StringHelper._
 import com.shocktrade.datacenter.helpers.ConversionHelper._
@@ -21,19 +23,23 @@ import org.slf4j.LoggerFactory
  * EODData.com Import Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class EodDataImportNarrative(config: ServerConfig) extends BroadwayNarrative(config, "EOD Data Import")
-with KafkaConstants {
+class EodDataImportNarrative(config: ServerConfig, id: String, props: Properties)
+  extends BroadwayNarrative(config, id, props) {
   private lazy val logger = LoggerFactory.getLogger(getClass)
 
+  // extract the properties we need
+  val kafkaTopic = props.getOrDie("kafka.topic")
+  val zkConnect = props.getOrDie("zookeeper.connect")
+
   // create a file reader actor to read lines from the incoming resource
-  val fileReader = addActor(new FileReadingActor(config))
+  val fileReader = prepareActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor
-  val kafkaPublisher = addActor(new KafkaPublishingActor(zkHost))
+  val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect))
 
   // let's calculate the throughput of the Kafka publishing actor
   var ticker = 0
-  val throughputCalc = addActor(new ThroughputCalculatingActor(kafkaPublisher, { messagesPerSecond =>
+  val throughputCalc = prepareActor(new ThroughputCalculatingActor(kafkaPublisher, { messagesPerSecond =>
     // log the throughput every 5 seconds
     if (ticker % 5 == 0) {
       logger.info(f"KafkaPublisher: Throughput rate is $messagesPerSecond%.1f")
@@ -42,10 +48,10 @@ with KafkaConstants {
   }))
 
   // let's throttle the messages flowing into Kafka
-  val throttler = addActor(new ThrottlingActor(throughputCalc, rateLimit = 250, enabled = true))
+  val throttler = prepareActor(new ThrottlingActor(throughputCalc, rateLimit = 250, enabled = true))
 
   // create a EOD data transformation actor
-  val eodDataToAvroActor = addActor(new EodDataToAvroActor(eodDataTopic, throttler))
+  val eodDataToAvroActor = prepareActor(new EodDataToAvroActor(kafkaTopic, throttler))
 
   onStart {
     _ foreach {

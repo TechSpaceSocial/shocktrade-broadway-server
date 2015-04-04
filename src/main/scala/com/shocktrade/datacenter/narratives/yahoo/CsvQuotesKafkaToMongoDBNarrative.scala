@@ -1,6 +1,6 @@
 package com.shocktrade.datacenter.narratives.yahoo
 
-import java.util.Date
+import java.util.{Date, Properties}
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.util.Timeout
@@ -9,11 +9,11 @@ import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor.{MessageReceived, StartConsuming}
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
+import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.util.OptionHelper._
 import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.datacenter.narratives.yahoo.CsvQuotesKafkaToMongoDBNarrative.CSVQuoteTransformActor
-import com.shocktrade.datacenter.narratives.{KafkaConstants, MongoDBConstants}
 import com.shocktrade.services.YFStockQuoteService
 import com.shocktrade.services.YFStockQuoteService.YFStockQuote
 
@@ -24,20 +24,27 @@ import scala.concurrent.duration._
  * CSV Stock Quotes: Kafka to MongoDB Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class CsvQuotesKafkaToMongoDBNarrative(config: ServerConfig) extends BroadwayNarrative(config, "CSV Quotes: Kafka to Mongo")
-with KafkaConstants with MongoDBConstants {
+class CsvQuotesKafkaToMongoDBNarrative(config: ServerConfig, id: String, props: Properties)
+  extends BroadwayNarrative(config, id, props) {
+
+  // extract the properties we need
+  val kafkaTopic = props.getOrDie("kafka.topic")
+  val mongoReplicas = props.getOrDie("mongo.replicas")
+  val mongoDatabase = props.getOrDie("mongo.database")
+  val mongoCollection = props.getOrDie("mongo.collection")
+  val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a MongoDB actor for persisting stock quotes
-  lazy val mongoWriter = addActor(MongoDBActor(parseServerList(MongoDBServers), ShockTradeDB), parallelism = 5)
+  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 5)
 
   // create a CSV to Stock Quote object transforming actor
-  lazy val quoteParser = addActor(new CSVQuoteTransformActor(mongoWriter), parallelism = 1)
+  lazy val quoteParser = prepareActor(new CSVQuoteTransformActor(mongoCollection, mongoWriter), parallelism = 1)
 
   // create the Kafka message consumer
-  lazy val kafkaConsumer = addActor(new KafkaConsumingActor(zkHost), parallelism = 1)
+  lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), parallelism = 1)
 
   onStart { resource =>
-    kafkaConsumer ! StartConsuming(CsvQuotesYahooToKafkaNarrative.topic, quoteParser)
+    kafkaConsumer ! StartConsuming(kafkaTopic, quoteParser)
   }
 }
 
@@ -46,13 +53,12 @@ with KafkaConstants with MongoDBConstants {
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 object CsvQuotesKafkaToMongoDBNarrative {
-  val StockQuotesTable = "Stocks3"
 
   /**
    * Stock Quote Transform Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class CSVQuoteTransformActor(target: ActorRef)(implicit ec: ExecutionContext) extends Actor with ActorLogging {
+  class CSVQuoteTransformActor(collectionName: String, target: ActorRef)(implicit ec: ExecutionContext) extends Actor with ActorLogging {
     override def receive = {
       case m: MessageReceived =>
         val startTime = System.currentTimeMillis()
@@ -84,8 +90,8 @@ object CsvQuotesKafkaToMongoDBNarrative {
 
           // if the symbol was changed  update the old record
           newSymbol.foreach { symbol =>
-            target ! Upsert(StockQuotesTable, query = O("symbol" -> oldSymbol), doc = O("symbol" -> oldSymbol))
-            target ! Upsert(StockQuotesTable, query = O("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
+            target ! Upsert(collectionName, query = O("symbol" -> oldSymbol), doc = O("symbol" -> oldSymbol))
+            target ! Upsert(collectionName, query = O("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
           }
         }
       }
@@ -102,7 +108,7 @@ object CsvQuotesKafkaToMongoDBNarrative {
       val theSymbol = newSymbol ?? oldSymbol
 
       Upsert(
-        StockQuotesTable,
+        collectionName,
         query = O("symbol" -> theSymbol),
         doc = $set(
           "exchange" -> q.exchange,

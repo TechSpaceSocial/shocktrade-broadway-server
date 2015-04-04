@@ -1,14 +1,16 @@
 package com.shocktrade.datacenter.narratives
 
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.{Date, Properties}
 
 import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor
 import com.ldaniels528.broadway.core.actors.FileReadingActor.{CopyText, Delimited, _}
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
+import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.PublishAvro
 import com.ldaniels528.broadway.core.resources.ReadableResource
+import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.shocktrade.avro.OTCTransHistoryRecord
@@ -19,16 +21,21 @@ import com.shocktrade.datacenter.narratives.OTCBBDailyUpdateNarrative.OTCBBEnric
  * OTC Bulletin Board Daily Update Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class OTCBBDailyUpdateNarrative(config: ServerConfig) extends BroadwayNarrative(config, "OTC/BB Daily Update")
-with KafkaConstants {
+class OTCBBDailyUpdateNarrative(config: ServerConfig, id: String, props: Properties)
+  extends BroadwayNarrative(config, id, props) {
+
+  // extract the properties we need
+  val kafkaTopic = props.getOrDie("kafka.topic")
+  val zkConnect = props.getOrDie("zookeeper.connect")
+
   // create a file reader actor to read lines from the incoming resource
-  lazy val fileReader = addActor(new FileReadingActor(config))
+  lazy val fileReader = prepareActor(new FileReadingActor(config))
 
   // create a Kafka publishing actor for OTC transactions
-  lazy val otcPublisher = addActor(new KafkaPublishingActor(zkHost))
+  lazy val otcPublisher = prepareActor(new KafkaPublishingActor(zkConnect))
 
   // create an OTC/BB data conversion actor
-  lazy val otcConverter = addActor(new OTCBBEnrichmentActor(otcPublisher))
+  lazy val otcConverter = prepareActor(new OTCBBEnrichmentActor(kafkaTopic, otcPublisher))
 
   onStart {
     _ foreach {
@@ -61,7 +68,7 @@ object OTCBBDailyUpdateNarrative {
    * OTC/BB Data Enrichment Actor
    * @author Lawrence Daniels <lawrence.daniels@gmail.com>
    */
-  class OTCBBEnrichmentActor(target: ActorRef) extends Actor {
+  class OTCBBEnrichmentActor(otcTranHistoryTopic: String, target: ActorRef) extends Actor {
     private val sdf_ts = new SimpleDateFormat("MM/dd/yyyy hh:mm:ss")
     private val sdf_dt = new SimpleDateFormat("MM/dd/yyyy")
 
@@ -91,7 +98,7 @@ object OTCBBDailyUpdateNarrative {
           items(12) map (_.toInt),
           items(13) map (_ == "Y"))
         AvroConversion.copy(transaction, builder)
-        target ! builder.build()
+        target ! PublishAvro(otcTranHistoryTopic, builder.build())
 
       case message =>
         unhandled(message)

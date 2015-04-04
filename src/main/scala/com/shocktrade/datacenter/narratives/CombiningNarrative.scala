@@ -1,5 +1,7 @@
 package com.shocktrade.datacenter.narratives
 
+import java.util.Properties
+
 import akka.actor.Actor
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.FileReadingActor
@@ -12,12 +14,14 @@ import com.shocktrade.datacenter.narratives.CombiningNarrative.FileWritingActor
  * File Combining Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class CombiningNarrative(config: ServerConfig) extends BroadwayNarrative(config, "File Combining") {
+class CombiningNarrative(config: ServerConfig, id: String, props: Properties)
+  extends BroadwayNarrative(config, id, props) {
+
   // create a file reader actor to read lines from the incoming resource
-  lazy val fileReader = addActor(new FileReadingActor(config))
+  lazy val fileReader = prepareActor(new FileReadingActor(config))
 
   // create an actor to copy the contents to
-  lazy val fileWriter = addActor(new FileWritingActor(config, RandomAccessFileResource("/Users/ldaniels/NASDAQ-bundle.txt")))
+  lazy val fileWriter = prepareActor(new FileWritingActor(config, RandomAccessFileResource("/Users/ldaniels/NASDAQ-bundle.txt")))
 
   onStart {
     _ foreach {
