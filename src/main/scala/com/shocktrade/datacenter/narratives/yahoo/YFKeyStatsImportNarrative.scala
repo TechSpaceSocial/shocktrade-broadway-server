@@ -3,8 +3,9 @@ package com.shocktrade.datacenter.narratives.yahoo
 import java.util.Properties
 
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.FileReadingActor
-import com.ldaniels528.broadway.core.actors.FileReadingActor._
+import com.ldaniels528.broadway.core.actors.file.FileReadingActor
+import FileReadingActor._
+import com.ldaniels528.broadway.core.actors.file.FileReadingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.resources.ReadableResource
 import com.ldaniels528.broadway.core.util.PropertiesHelper._

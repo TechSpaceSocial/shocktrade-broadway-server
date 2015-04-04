@@ -3,8 +3,9 @@ package com.shocktrade.datacenter.narratives
 import java.util.Properties
 
 import com.ldaniels528.broadway.BroadwayNarrative
-import com.ldaniels528.broadway.core.actors.FileReadingActor
-import com.ldaniels528.broadway.core.actors.FileReadingActor.CopyText
+import com.ldaniels528.broadway.core.actors.file.FileReadingActor
+import FileReadingActor.CopyText
+import com.ldaniels528.broadway.core.actors.file.FileReadingActor
 import com.ldaniels528.broadway.core.resources.{RandomAccessFileResource, ReadableResource}
 import com.ldaniels528.broadway.server.ServerConfig
 import com.shocktrade.datacenter.actors.FileWritingActor

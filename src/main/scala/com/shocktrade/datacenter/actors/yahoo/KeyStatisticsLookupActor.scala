@@ -1,7 +1,8 @@
 package com.shocktrade.datacenter.actors.yahoo
 
 import akka.actor.{Actor, ActorRef}
-import com.ldaniels528.broadway.core.actors.FileReadingActor.{TextLine, ClosingFile, OpeningFile}
+import com.ldaniels528.broadway.core.actors.file.FileReadingActor
+import FileReadingActor.{TextLine, ClosingFile, OpeningFile}
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.PublishAvro
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.shocktrade.datacenter.helpers.ResourceTracker

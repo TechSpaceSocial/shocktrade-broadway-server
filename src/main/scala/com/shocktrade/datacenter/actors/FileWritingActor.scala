@@ -1,7 +1,8 @@
 package com.shocktrade.datacenter.actors
 
 import akka.actor.Actor
-import com.ldaniels528.broadway.core.actors.FileReadingActor.{BinaryBlock, TextLine}
+import com.ldaniels528.broadway.core.actors.file.FileReadingActor
+import FileReadingActor.{BinaryBlock, TextLine}
 import com.ldaniels528.broadway.core.resources.RandomAccessFileResource
 
 /**

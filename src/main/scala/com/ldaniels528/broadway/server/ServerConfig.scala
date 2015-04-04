@@ -4,7 +4,8 @@ import java.io.File
 
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.routing.RoundRobinPool
-import com.ldaniels528.broadway.core.actors.{ArchivingActor, NarrativeProcessingActor}
+import com.ldaniels528.broadway.core.actors.NarrativeProcessingActor
+import com.ldaniels528.broadway.core.actors.file.ArchivingActor
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.core.util.FileHelper._
 import com.ldaniels528.broadway.server.ServerConfig._

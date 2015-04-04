@@ -1,7 +1,8 @@
-package com.ldaniels528.broadway.core.actors
+package com.ldaniels528.broadway.core.actors.file
 
 import akka.actor.{Actor, ActorRef}
-import com.ldaniels528.broadway.core.actors.FileReadingActor._
+import com.ldaniels528.broadway.core.actors.{IOFinalEvent, IOInitialEvent}
+import com.ldaniels528.broadway.core.actors.file.FileReadingActor._
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.core.util.TextFileHelper
 import com.ldaniels528.broadway.server.ServerConfig
@@ -17,6 +18,7 @@ class FileReadingActor(config: ServerConfig) extends Actor {
   override def receive = {
     case CopyBinary(resource, target) => copyBinary(target, resource)
     case CopyText(resource, target, handler) => copyText(target, resource, handler)
+    case TransformFile(resource, target, transform) => transformFile(resource, target, transform)
     case message => unhandled(message)
   }
 
@@ -87,6 +89,33 @@ class FileReadingActor(config: ServerConfig) extends Actor {
     }
   }
 
+  /**
+   * Processes the given resource, while performing the given transformation on each record.
+   * @param target the given target actor
+   * @param resource the resource to read from
+   * @param transform the given transformation function
+   */
+  private def transformFile[T](resource: ReadableResource, target: ActorRef, transform: (Long, String) => Option[T]) {
+    var lineNo = 1L
+    resource.getInputStream foreach { in =>
+      // notify the target actor that the resource has been opened
+      target ! OpeningFile(resource)
+
+      // transmit all the lines of the file
+      Source.fromInputStream(in).getLines() foreach { line =>
+        transform(lineNo, line) foreach(target ! _)
+        lineNo += 1
+      }
+
+      // notify the target actor that the resource has been closed
+      target ! ClosingFile(resource)
+
+      // archive the resource
+      config.archivingActor ! resource
+    }
+  }
+
+
 }
 
 /**
@@ -114,7 +143,7 @@ object FileReadingActor {
    * This message is sent once the actor has reach the end-of-file for the given resource
    * @param resource the given [[ReadableResource]]
    */
-  case class ClosingFile(resource: ReadableResource)
+  case class ClosingFile(resource: ReadableResource) extends IOFinalEvent
 
   /**
    * This message initiates a process to copy the contents of a file (as binary) to the given target actor
@@ -137,7 +166,15 @@ object FileReadingActor {
    * This message is sent when the given resource is opened for reading
    * @param resource the given [[ReadableResource]]
    */
-  case class OpeningFile(resource: ReadableResource)
+  case class OpeningFile(resource: ReadableResource) extends IOInitialEvent
+
+  /**
+   * Processes the given resource, while performing the given transformation on each record.
+   * @param resource the given resource
+   * @param target the given target [[ActorRef]]
+   * @param transform the given transform
+   */
+  case class TransformFile[T](resource: ReadableResource, target: ActorRef, transform: (Long, String) => Option[T])
 
   /**
    * Represents a line of text read from the given resource (and optionally parsed into tokens)

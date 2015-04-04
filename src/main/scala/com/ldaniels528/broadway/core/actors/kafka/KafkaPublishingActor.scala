@@ -3,6 +3,7 @@ package com.ldaniels528.broadway.core.actors.kafka
 import akka.actor.{Actor, ActorLogging}
 import com.datastax.driver.core.utils.UUIDs
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.{Publish, PublishAvro}
+import com.ldaniels528.broadway.core.actors.{IOFinalEvent, IOInitialEvent}
 import com.ldaniels528.trifecta.io.ByteBufferUtils
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.ldaniels528.trifecta.io.kafka.KafkaPublisher
@@ -24,6 +25,11 @@ class KafkaPublishingActor(zkConnectionString: String) extends Actor with ActorL
   override def receive = {
     case Publish(topic, message, key, attempts) => publish(topic, key, message, attempts)
     case PublishAvro(topic, record, key, attempts) => publish(topic, key, AvroConversion.encodeRecord(record), attempts)
+
+    // ignore any other I/O events
+    case event: IOInitialEvent =>
+    case event: IOFinalEvent =>
+
     case message =>
       log.error(s"Unhandled message $message")
       unhandled(message)

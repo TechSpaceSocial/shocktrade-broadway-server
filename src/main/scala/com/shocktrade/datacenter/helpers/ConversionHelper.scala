@@ -1,8 +1,8 @@
 package com.shocktrade.datacenter.helpers
 
-import java.lang.{Double => JDouble, Long => JLong}
 import java.text.SimpleDateFormat
 
+import org.joda.time.format.DateTimeFormatter
 import org.slf4j.LoggerFactory
 
 import scala.util.{Failure, Success, Try}
@@ -19,6 +19,15 @@ object ConversionHelper {
    * @param s the given string
    */
   implicit class StringConversion(val s: String) extends AnyVal {
+
+    def asEPOC(sdf: DateTimeFormatter): Option[Long] = {
+      Try(sdf.parseDateTime(s)) match {
+        case Success(date) => Option(date).map(_.toDate.getTime)
+        case Failure(e) =>
+          logger.error(s"Error parsing date string '$s': ${e.getMessage}")
+          None
+      }
+    }
 
     def asEPOC(sdf: SimpleDateFormat): Option[Long] = {
       Try(sdf.parse(s)) match {
