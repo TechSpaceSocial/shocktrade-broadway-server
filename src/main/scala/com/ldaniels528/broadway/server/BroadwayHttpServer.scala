@@ -1,6 +1,7 @@
 package com.ldaniels528.broadway.server
 
-import java.io.{File, FileInputStream, FileOutputStream, InputStream}
+import java.io._
+import java.net.URL
 
 import _root_.spray.can.Http
 import _root_.spray.can.Http.RegisterChunkHandler
@@ -8,7 +9,6 @@ import _root_.spray.http.HttpHeaders.{RawHeader, `Content-Disposition`}
 import _root_.spray.http.HttpMethods._
 import _root_.spray.http.MediaTypes._
 import _root_.spray.http.parser.HttpParser
-import _root_.spray.http.{ChunkedMessageEnd, ChunkedRequestStart, ChunkedResponseStart, ContentType, DateTime, HttpEntity, HttpHeaders, HttpRequest, HttpResponse, MessageChunk, MultipartMediaType, SetRequestTimeout, Timedout, Uri}
 import _root_.spray.io.CommandWrapper
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, _}
 import akka.io.IO
@@ -16,8 +16,11 @@ import akka.io.Tcp.Bound
 import akka.pattern.ask
 import akka.util.Timeout
 import com.ldaniels528.broadway.server.BroadwayHttpServer._
+import com.ldaniels528.trifecta.util.ResourceHelper._
+import org.apache.commons.io.IOUtils
 import org.jvnet.mimepull.{MIMEMessage, MIMEPart}
 import org.slf4j.LoggerFactory
+import spray.http._
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.{Duration, _}
@@ -30,6 +33,7 @@ import scala.language.postfixOps
 class BroadwayHttpServer(host: String, port: Int)(implicit system: ActorSystem) {
   private lazy val logger = LoggerFactory.getLogger(getClass)
   private val listenerActor = system.actorOf(Props[ClientHandlingActor], "clientHandler")
+
   import system.dispatcher
 
   def start(): Unit = {
@@ -51,48 +55,48 @@ class BroadwayHttpServer(host: String, port: Int)(implicit system: ActorSystem) 
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 object BroadwayHttpServer {
+  private[this] lazy val logger = LoggerFactory.getLogger(getClass)
 
-  lazy val index = HttpResponse(
-    entity = HttpEntity(`text/html`,
-      <html>
-        <body>
-          <h1>Say hello to
-            <i>spray-can</i>
-            !</h1>
-          <p>Defined resources:</p>
-          <ul>
-            <li>
-              <a href="/ping">/ping</a>
-            </li>
-            <li>
-              <a href="/stream">/stream</a>
-            </li>
-            <li>
-              <a href="/server-stats">/server-stats</a>
-            </li>
-            <li>
-              <a href="/crash">/crash</a>
-            </li>
-            <li>
-              <a href="/timeout">/timeout</a>
-            </li>
-            <li>
-              <a href="/timeout/timeout">/timeout/timeout</a>
-            </li>
-            <li>
-              <a href="/shutdown">/shutdown</a>
-            </li>
-          </ul>
-          <p>Test file upload</p>
-          <form action="/file-upload" enctype="multipart/form-data" method="post">
-            <input type="file" name="datafile" multiple=" "></input>
-            <br/>
-            <input type="submit">Submit</input>
-          </form>
-        </body>
-      </html>.toString()
-    )
-  )
+  private def getHttpContent(req: HttpRequest): HttpResponse = getHttpContent(req.uri.path.toString())
+
+  private def getHttpContent(resource: String): HttpResponse = {
+    val resourcePath = if (resource.startsWith("/app")) resource else s"/app$resource"
+    val mimeType = guessMIMEType(resource)
+    logger.info(s"Resource requested: $resource ~> $resourcePath [$mimeType]")
+
+    getResource(resourcePath) match {
+      case Some(url) =>
+        url.openStream()
+        HttpResponse(entity = HttpEntity(mimeType, readContent(url)))
+      case None =>
+        logger.info(s"Resource [$resourcePath] not found")
+        HttpResponse(status = 404, entity = "Resource not found")
+    }
+  }
+
+  private def guessMIMEType(resource: String) = {
+    resource.toLowerCase match {
+      case s if s.matches("\\S+[.]css") => `text/css`
+      case s if s.matches("\\S+[.]htm") || s.matches("\\S+[.]html") => `text/html`
+      case s if s.matches("\\S+[.]jp*g") => `image/jpeg`
+      case s if s.matches("\\S+[.]js") => `application/javascript`
+      case s if s.matches("\\S+[.]json") => `application/json`
+      case s if s.matches("\\S+[.]gif") => `image/gif`
+      case s if s.matches("\\S+[.]png") => `image/png`
+      case s => `text/html`
+    }
+  }
+
+  private def readContent(url: URL) = {
+    new ByteArrayOutputStream(8192) use { out =>
+      url.openStream() use { in =>
+        IOUtils.copy(in, out)
+      }
+      out.toByteArray
+    }
+  }
+
+  private def getResource(name: String) = Option(getClass.getResource(name))
 
   /**
    * Client Handling Actor
@@ -106,24 +110,21 @@ object BroadwayHttpServer {
       case _: Http.Connected => sender ! Http.Register(self)
 
       case HttpRequest(GET, Uri.Path("/"), _, _, _) =>
-        sender ! index
-
-      case HttpRequest(GET, Uri.Path("/ping"), _, _, _) =>
-        sender ! HttpResponse(entity = "PONG!")
+        sender ! getHttpContent("/index.htm")
 
       case r@HttpRequest(POST, Uri.Path("/file-upload"), headers, entity: HttpEntity.NonEmpty, protocol) =>
         // emulate chunked behavior for POST requests to this path
         val parts = r.asPartStream()
         val client = sender()
         val handler = context.actorOf(Props(new FileUploadHandler(client, parts.head.asInstanceOf[ChunkedRequestStart])))
-        parts.tail.foreach(handler !)
+        parts.tail.foreach(handler ! _)
 
       case s@ChunkedRequestStart(HttpRequest(POST, Uri.Path("/file-upload"), _, _, _)) =>
         val client = sender()
         val handler = context.actorOf(Props(new FileUploadHandler(client, s)))
         sender ! RegisterChunkHandler(handler)
 
-      case _: HttpRequest => sender ! HttpResponse(status = 404, entity = "Unknown resource!")
+      case req: HttpRequest => sender ! getHttpContent(req)
 
       // see https://github.com/spray/spray/tree/master/examples/spray-can/simple-http-server/src/main/scala/spray/examples
       case Timedout(HttpRequest(method, uri, _, _, _)) =>
@@ -132,7 +133,9 @@ object BroadwayHttpServer {
   }
 
   class StreamingActor(client: ActorRef, count: Int) extends Actor with ActorLogging {
+
     import context.dispatcher
+
     log.debug("Starting streaming response ...")
 
     // we use the successful sending of a chunk as trigger for scheduling the next chunk

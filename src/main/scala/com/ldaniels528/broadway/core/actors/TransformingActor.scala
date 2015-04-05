@@ -6,8 +6,9 @@ import akka.actor.Actor
  * Data Transforming Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class TransformingActor(transform: Any => Unit) extends Actor {
+class TransformingActor(transform: Any => Boolean) extends Actor {
   override def receive = {
-    case message => transform(message)
+    case message =>
+      if(!transform(message)) unhandled(message)
   }
 }

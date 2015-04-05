@@ -46,7 +46,8 @@ class YahooRealTimeQuotesNarrative(config: ServerConfig, id: String, props: Prop
       doc.getAs[String]("symbol") foreach { symbol =>
         kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFRealtimeStockQuoteService.getQuoteSync(symbol)))
       }
-    case _ =>
+      true
+    case _ => false
   }))
 
   onStart { resource =>

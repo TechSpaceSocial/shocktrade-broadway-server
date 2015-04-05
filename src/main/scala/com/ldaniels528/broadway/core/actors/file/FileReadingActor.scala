@@ -1,7 +1,6 @@
 package com.ldaniels528.broadway.core.actors.file
 
 import akka.actor.{Actor, ActorRef}
-import com.ldaniels528.broadway.core.actors.{IOFinalEvent, IOInitialEvent}
 import com.ldaniels528.broadway.core.actors.file.FileReadingActor._
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.core.util.TextFileHelper
@@ -103,7 +102,7 @@ class FileReadingActor(config: ServerConfig) extends Actor {
 
       // transmit all the lines of the file
       Source.fromInputStream(in).getLines() foreach { line =>
-        transform(lineNo, line) foreach(target ! _)
+        transform(lineNo, line) foreach (target ! _)
         lineNo += 1
       }
 
@@ -143,7 +142,7 @@ object FileReadingActor {
    * This message is sent once the actor has reach the end-of-file for the given resource
    * @param resource the given [[ReadableResource]]
    */
-  case class ClosingFile(resource: ReadableResource) extends IOFinalEvent
+  case class ClosingFile(resource: ReadableResource)
 
   /**
    * This message initiates a process to copy the contents of a file (as binary) to the given target actor
@@ -166,7 +165,7 @@ object FileReadingActor {
    * This message is sent when the given resource is opened for reading
    * @param resource the given [[ReadableResource]]
    */
-  case class OpeningFile(resource: ReadableResource) extends IOInitialEvent
+  case class OpeningFile(resource: ReadableResource)
 
   /**
    * Processes the given resource, while performing the given transformation on each record.

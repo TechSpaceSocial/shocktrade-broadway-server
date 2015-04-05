@@ -45,7 +45,8 @@ class YahooKeyStatisticsNarrative(config: ServerConfig, id: String, props: Prope
       doc.getAs[String]("symbol") foreach { symbol =>
         kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFKeyStatisticsService.getKeyStatisticsSync(symbol)))
       }
-    case _ =>
+      true
+    case _ => false
   }))
 
   onStart { resource =>

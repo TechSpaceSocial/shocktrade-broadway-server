@@ -52,7 +52,8 @@ class YahooCsvToKafkaNarrative(config: ServerConfig, id: String, props: Properti
           kafkaPublisher ! Publish(kafkaTopic, csv.getBytes("UTF-8"))
         }
       }
-    case _ =>
+      true
+    case _ => false
   }))
 
   onStart { resource =>
@@ -94,5 +95,14 @@ class YahooCsvToKafkaNarrative(config: ServerConfig, id: String, props: Properti
       lo <- low
     } yield if (lo != 0.0d) (hi - lo) / lo else 0.0d
   }
+
+  private def computeChangePct(prevClose: Option[Double], lastTrade: Option[Double]) = {
+    for {
+      prev <- prevClose
+      last <- lastTrade
+      diff = last - prev
+    } yield if (diff != 0) 100d * (diff / prev) else 0.0d
+  }
+
 
 }
