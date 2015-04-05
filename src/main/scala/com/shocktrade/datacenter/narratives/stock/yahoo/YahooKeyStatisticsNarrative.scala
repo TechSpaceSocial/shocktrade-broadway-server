@@ -40,22 +40,18 @@ class YahooKeyStatisticsNarrative(config: ServerConfig, id: String, props: Prope
   lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 1)
 
   // create an actor to transform the MongoDB results to Avro-encoded records
-  lazy val transformer = prepareActor(new TransformingActor(kafkaPublisher, messageTransform))
+  lazy val transformer = prepareActor(new TransformingActor({
+    case MongoResult(doc) =>
+      doc.getAs[String]("symbol") foreach { symbol =>
+        kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFKeyStatisticsService.getKeyStatisticsSync(symbol)))
+      }
+    case _ =>
+  }))
 
   onStart { resource =>
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,
     // and send it to Kafka
     mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5))
-  }
-
-  private def messageTransform(message: Any): Option[PublishAvro] = {
-    message match {
-      case MongoResult(doc) =>
-        doc.getAs[String]("symbol") map { symbol =>
-          PublishAvro(kafkaTopic, toAvro(YFKeyStatisticsService.getKeyStatisticsSync(symbol)))
-        }
-      case _ => None
-    }
   }
 
   private def toAvro(ks: YFKeyStatistics) = {

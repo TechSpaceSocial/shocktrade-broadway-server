@@ -1,13 +1,13 @@
 package com.ldaniels528.broadway.core.actors
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.Actor
 
 /**
  * Data Transforming Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class TransformingActor[T](recipient: ActorRef, transform: Any => Option[T]) extends Actor {
+class TransformingActor(transform: Any => Unit) extends Actor {
   override def receive = {
-    case message => transform(message) foreach (recipient ! _)
+    case message => transform(message)
   }
 }

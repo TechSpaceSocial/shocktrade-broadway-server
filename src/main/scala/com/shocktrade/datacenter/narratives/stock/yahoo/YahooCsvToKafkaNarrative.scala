@@ -45,25 +45,21 @@ class YahooCsvToKafkaNarrative(config: ServerConfig, id: String, props: Properti
   lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 6)
 
   // create an actor to transform the MongoDB results to Avro-encoded records
-  lazy val transformer = prepareActor(new TransformingActor(kafkaPublisher, messageTransform))
+  lazy val transformer = prepareActor(new TransformingActor({
+    case MongoResult(doc) =>
+      doc.getAs[String]("symbol") foreach { symbol =>
+        YFStockQuoteService.getCSVDataSync(Seq(symbol), parameters) foreach { csv =>
+          kafkaPublisher ! Publish(kafkaTopic, csv.getBytes("UTF-8"))
+        }
+      }
+    case _ =>
+  }))
 
   onStart { resource =>
     // 1. Query all symbols not update in the last 5 minutes
     // 2. Send the symbols to the transforming actor, which will load the quote, transform it to Avro
     // 3. Write each Avro record to Kafka
     mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5))
-  }
-
-  private def messageTransform(message: Any): Option[Publish] = {
-    message match {
-      case MongoResult(doc) =>
-        doc.getAs[String]("symbol") flatMap { symbol =>
-          YFStockQuoteService.getCSVDataSync(Seq(symbol), parameters).toSeq.headOption map { csv =>
-            Publish(kafkaTopic, csv.getBytes("UTF-8"))
-          }
-        }
-      case _ => None
-    }
   }
 
   private def toAvro(quote: YFStockQuote) = {
