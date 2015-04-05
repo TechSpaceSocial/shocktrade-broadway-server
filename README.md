@@ -19,7 +19,7 @@ The following XML file describes how files will be mapped to the narrative:
 <anthology id="EodData" version="1.0">
 
     <narrative id="EodDataImportNarrative"
-               class="com.shocktrade.datacenter.narratives.EodDataImportNarrative">
+               class="com.shocktrade.datacenter.narratives.stock.EodDataImportNarrative">
         <properties>
             <property key="kafka.topic">eoddata.tradinghistory.avro</property>
             <property key="zookeeper.connect">dev801:2181</property>

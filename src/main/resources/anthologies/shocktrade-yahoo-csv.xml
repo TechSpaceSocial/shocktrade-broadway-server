@@ -1,5 +1,6 @@
 <?xml version="1.0" ?>
-<anthology id="Yahoo Data" version="1.0">
+<anthology id="Yahoo CSV Quotes" version="1.0">
+
     <!-- Schedules -->
 
     <schedule id="ContinuousSchedule" class="com.shocktrade.datacenter.schedules.ContinuousSchedule"/>
@@ -9,8 +10,8 @@
 
     <!-- Narratives -->
 
-    <narrative id="CsvQuotesYahooToKafkaNarrative"
-               class="com.shocktrade.datacenter.narratives.yahoo.CsvQuotesYahooToKafkaNarrative">
+    <narrative id="YahooCsvToKafkaNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooCsvToKafkaNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.csv</property>
             <property key="mongo.database">shocktrade</property>
@@ -20,8 +21,8 @@
         </properties>
     </narrative>
 
-    <narrative id="CsvQuotesKafkaToMongoDBNarrative"
-               class="com.shocktrade.datacenter.narratives.yahoo.CsvQuotesKafkaToMongoDBNarrative">
+    <narrative id="YahooCsvKafkaToMongoDBNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooCsvKafkaToMongoDBNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.csv</property>
             <property key="mongo.database">shocktrade</property>
@@ -30,23 +31,15 @@
             <property key="zookeeper.connect">dev801:2181</property>
         </properties>
     </narrative>
-
-    <narrative id="KeyStatsImportNarrative"
-               class="com.shocktrade.datacenter.narratives.yahoo.YFKeyStatsImportNarrative">
-        <properties>
-            <property key="kafka.topic">yahoo.keystats.avro</property>
-            <property key="zookeeper.connect">dev801:2181</property>
-        </properties>
-    </narrative>
     
     <!-- Triggers -->
 
     <trigger
             schedule-ref="TradingSchedule"
-            narrative-ref="CsvQuotesYahooToKafkaNarrative"/>
+            narrative-ref="YahooCsvToKafkaNarrative"/>
 
     <trigger
             schedule-ref="NonRunningSchedule"
-            narrative-ref="CsvQuotesKafkaToMongoDBNarrative"/>
+            narrative-ref="YahooCsvKafkaToMongoDBNarrative"/>
 
 </anthology>

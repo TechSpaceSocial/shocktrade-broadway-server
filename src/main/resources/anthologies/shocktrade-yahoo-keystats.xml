@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<anthology id="Yahoo Key Statistics" version="1.0">
+
+    <!-- Schedules -->
+
+    <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
+
+    <!-- Narratives -->
+
+    <narrative id="KeyStatsImportNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooKeyStatisticsNarrative">
+        <properties>
+            <property key="kafka.topic">yahoo.keystats.avro</property>
+            <property key="zookeeper.connect">dev801:2181</property>
+        </properties>
+    </narrative>
+
+    <!-- Triggers -->
+
+    <trigger
+            schedule-ref="TradingSchedule"
+            narrative-ref="KeyStatsImportNarrative"/>
+
+</anthology>

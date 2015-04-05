@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.yahoo
+package com.shocktrade.datacenter.narratives.stock.yahoo
 
 import java.util.Properties
 
@@ -9,14 +9,13 @@ import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
-import com.mongodb.casbah.Imports.{DBObject => O}
 import com.shocktrade.datacenter.actors.yahoo.CSVQuoteTransformActor
 
 /**
  * CSV Stock Quotes: Kafka to MongoDB Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class CsvQuotesKafkaToMongoDBNarrative(config: ServerConfig, id: String, props: Properties)
+class YahooCsvKafkaToMongoDBNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props) {
 
   // extract the properties we need
@@ -38,5 +37,6 @@ class CsvQuotesKafkaToMongoDBNarrative(config: ServerConfig, id: String, props: 
   onStart { resource =>
     kafkaConsumer ! StartConsuming(kafkaTopic, quoteParser)
   }
+
 }
 

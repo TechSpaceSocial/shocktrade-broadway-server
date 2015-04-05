@@ -6,14 +6,11 @@ import com.ldaniels528.trifecta.io.kafka.KafkaMicroConsumer._
 import com.ldaniels528.trifecta.io.zookeeper.ZKProxy
 import com.shocktrade.datacenter.actors.ScanCoordinatingActor.Scan
 
-import scala.concurrent.ExecutionContext
-
 /**
  * Scan Coordinating Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class ScanCoordinatingActor(target: ActorRef)(implicit ec: ExecutionContext, zk: ZKProxy) extends Actor {
-
+class ScanCoordinatingActor(target: ActorRef)(implicit zk: ZKProxy) extends Actor {
   override def receive = {
     case groupId: String =>
       coordinate(groupId) foreach (target ! _)

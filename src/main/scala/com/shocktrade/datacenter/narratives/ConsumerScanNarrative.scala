@@ -5,10 +5,8 @@ import java.util.Properties
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
-import com.ldaniels528.trifecta.io.kafka.Broker
 import com.ldaniels528.trifecta.io.zookeeper.ZKProxy
 import com.shocktrade.datacenter.actors.{ConsumerResetActor, ConsumerScanningActor, ScanCoordinatingActor}
-import org.slf4j.LoggerFactory
 
 /**
  * Consumer Scan Narrative

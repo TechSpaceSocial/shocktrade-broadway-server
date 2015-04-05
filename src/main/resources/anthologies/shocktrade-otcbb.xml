@@ -2,7 +2,7 @@
 <anthology id="OTC/BB" version="1.0">
     <!-- Narratives -->
 
-    <narrative id="OTCBBDailyUpdateNarrative" class="com.shocktrade.datacenter.narratives.OTCBBDailyUpdateNarrative">
+    <narrative id="OTCBBDailyUpdateNarrative" class="com.shocktrade.datacenter.narratives.stock.OTCBBDailyUpdateNarrative">
         <properties>
             <property key="kafka.topic">otcbb.transactions.avro</property>
             <property key="zookeeper.connect">dev801:2181</property>

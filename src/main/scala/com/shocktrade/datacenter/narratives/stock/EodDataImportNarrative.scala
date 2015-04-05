@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives
+package com.shocktrade.datacenter.narratives.stock
 
 import java.lang.{Double => JDouble, Long => JLong}
 import java.util.Properties
@@ -17,7 +17,7 @@ import com.shocktrade.datacenter.helpers.ConversionHelper._
 import org.joda.time.format.DateTimeFormat
 
 /**
- * EODData.com Import Narrative
+ * EODData.com Trading History Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 class EodDataImportNarrative(config: ServerConfig, id: String, props: Properties)
@@ -29,7 +29,7 @@ class EodDataImportNarrative(config: ServerConfig, id: String, props: Properties
   private val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a file reader actor to read lines from the incoming resource
-  lazy val fileReader = prepareActor(new FileReadingActor(config), parallelism = 10)
+  lazy val fileReader = prepareActor(new FileReadingActor(config), parallelism = 30)
 
   // create a Kafka publishing actor
   lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 10)

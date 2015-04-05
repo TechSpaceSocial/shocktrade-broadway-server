@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives
+package com.shocktrade.datacenter.narratives.stock
 
 import java.text.SimpleDateFormat
 import java.util.{Date, Properties}
@@ -14,7 +14,7 @@ import com.ldaniels528.broadway.core.util.TextFileHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.shocktrade.avro.OTCTransHistoryRecord
-import com.shocktrade.datacenter.narratives.OTCBBDailyUpdateNarrative.OTCDailyRecord
+import com.shocktrade.datacenter.narratives.stock.OTCBBDailyUpdateNarrative.OTCDailyRecord
 import org.joda.time.format.DateTimeFormat
 
 /**

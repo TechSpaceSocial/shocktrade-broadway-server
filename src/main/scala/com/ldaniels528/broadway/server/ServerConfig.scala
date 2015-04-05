@@ -2,9 +2,8 @@ package com.ldaniels528.broadway.server
 
 import java.io.File
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.routing.RoundRobinPool
-import com.ldaniels528.broadway.core.actors.NarrativeProcessingActor
 import com.ldaniels528.broadway.core.actors.file.ArchivingActor
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.core.util.FileHelper._
@@ -12,6 +11,7 @@ import com.ldaniels528.broadway.server.ServerConfig._
 import com.ldaniels528.trifecta.util.OptionHelper._
 import com.ldaniels528.trifecta.util.PropertiesHelper._
 
+import scala.collection.concurrent.TrieMap
 import scala.reflect.ClassTag
 
 /**
@@ -20,10 +20,10 @@ import scala.reflect.ClassTag
  */
 case class ServerConfig(props: java.util.Properties, httpInfo: Option[HttpInfo]) {
   implicit val system = ActorSystem(props.getOrElse("broadway.actor.system", "BroadwaySystem"))
+  private val actorCache = TrieMap[Class[_ <: Actor], ActorRef]()
 
   // create the system actors
   lazy val archivingActor = prepareActor(new ArchivingActor(this))
-  lazy val processingActor = prepareActor(new NarrativeProcessingActor(this), parallelism = 10)
 
   /**
    * Prepares a new actor for execution within the narrative
@@ -33,6 +33,7 @@ case class ServerConfig(props: java.util.Properties, httpInfo: Option[HttpInfo])
    * @return an [[akka.actor.ActorRef]]
    */
   def prepareActor[T <: Actor : ClassTag](actor: => T, parallelism: Int = 1) = {
+    //actorCache.getOrElseUpdate(actor.getClass, system.actorOf(Props(actor).withRouter(RoundRobinPool(nrOfInstances = parallelism))))
     system.actorOf(Props(actor).withRouter(RoundRobinPool(nrOfInstances = parallelism)))
   }
 

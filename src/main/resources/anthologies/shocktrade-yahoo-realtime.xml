@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<anthology id="Yahoo Real-time Quotes" version="1.0">
+
+    <!-- Schedules -->
+
+    <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.schedules.ScheduleOnce"/>
+    <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
+
+    <!-- Narratives -->
+
+    <narrative id="YahooRealTimeQuotesNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooRealTimeQuotesNarrative">
+        <properties>
+            <property key="kafka.topic">yahoo.quotes.realtime.avro</property>
+            <property key="mongo.database">shocktrade</property>
+            <property key="mongo.replicas">dev601:27017</property>
+            <property key="mongo.collection">Stocks</property>
+            <property key="zookeeper.connect">dev801:2181</property>
+        </properties>
+    </narrative>
+
+    <!-- Triggers -->
+
+    <trigger
+            schedule-ref="TradingSchedule"
+            narrative-ref="YahooRealTimeQuotesNarrative"/>
+
+</anthology>

@@ -1,6 +1,6 @@
 package com.ldaniels528.broadway.core.actors.nosql
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
 import com.mongodb.casbah.Imports.{DBObject => Q, _}
 import com.mongodb.casbah.commons.conversions.scala.RegisterJodaTimeConversionHelpers
@@ -28,40 +28,33 @@ class MongoDBActor(client: () => MongoClient, databaseName: String) extends Acto
   }
 
   override def receive = {
-    case Find(name, query, fields) =>
-      val theSender = sender()
-      getCollection(name).foreach(_.find(query, fields) foreach (theSender ! MongoResult(_)))
+    case Find(recipient, name, query, fields) =>
+      getCollection(name).foreach(_.find(query, fields) foreach (recipient ! MongoResult(_)))
 
-    case FindAndModify(name, query, fields, sort, update, remove, returnNew, upsert) =>
-      val theSender = sender()
-      getCollection(name).foreach(_.findAndModify(query, fields, sort, remove, update, returnNew, upsert) foreach (theSender ! _))
+    case FindAndModify(recipient, name, query, fields, sort, update, remove, returnNew, upsert) =>
+      getCollection(name).foreach(_.findAndModify(query, fields, sort, remove, update, returnNew, upsert) foreach (recipient ! MongoResult(_)))
 
-    case FindAndRemove(name, query) =>
-      getCollection(name).foreach(_.findAndRemove(query))
+    case FindAndRemove(recipient, name, query) =>
+      getCollection(name).foreach(_.findAndRemove(query) foreach (recipient ! MongoResult(_)))
 
-    case FindOne(name, query, fields) =>
-      val theSender = sender()
-      getCollection(name).foreach(theSender ! _.findOne(query, fields))
+    case FindOne(recipient, name, query, fields) =>
+      getCollection(name).foreach(mc => recipient ! mc.findOne(query, fields))
 
-    case FindOneByID(name, id, fields) =>
-      val theSender = sender()
-      getCollection(name).foreach(theSender ! _.findOneByID(id, fields))
+    case FindOneByID(recipient, name, id, fields) =>
+      getCollection(name).foreach(recipient ! _.findOneByID(id, fields))
 
-    case Insert(name, doc, concern) =>
-      val theSender = sender()
-      getCollection(name).foreach(theSender ! _.insert(doc))
+    case Insert(recipient, name, doc, concern) =>
+      getCollection(name).foreach(recipient ! _.insert(doc))
 
-    case Save(name, doc, concern) =>
-      val theSender = sender()
-      getCollection(name).foreach(theSender ! _.save(doc, concern))
+    case Save(recipient, name, doc, concern) =>
+      getCollection(name).foreach(recipient ! _.save(doc, concern))
 
-    case Update(name, query, doc, multi, concern) =>
-      val theSender = sender()
-      getCollection(name).foreach(theSender ! _.update(query, doc, upsert = false, multi, concern))
+    case Update(recipient, name, query, doc, multi, concern) =>
+      val recipient = sender()
+      getCollection(name).foreach(recipient ! _.update(query, doc, upsert = false, multi, concern))
 
-    case Upsert(name, query, doc, multi, concern) =>
-      val theSender = sender()
-      getCollection(name).foreach(theSender ! _.update(query, doc, upsert = true, multi, concern))
+    case Upsert(recipient, name, query, doc, multi, concern) =>
+      getCollection(name).foreach(recipient ! _.update(query, doc, upsert = true, multi, concern))
 
     case message =>
       unhandled(message)
@@ -106,13 +99,14 @@ object MongoDBActor {
     }
   }
 
-  case class Find(name: String, query: DBObject, fields: DBObject = Q())
+  case class Find(recipient: ActorRef, name: String, query: DBObject, fields: DBObject = Q())
 
-  case class FindOne(name: String, query: DBObject, fields: DBObject = Q())
+  case class FindOne(recipient: ActorRef, name: String, query: DBObject, fields: DBObject = Q())
 
-  case class FindOneByID(name: String, id: String, fields: DBObject = Q())
+  case class FindOneByID(recipient: ActorRef, name: String, id: String, fields: DBObject = Q())
 
-  case class FindAndModify(name: String,
+  case class FindAndModify(recipient: ActorRef,
+                           name: String,
                            query: DBObject,
                            fields: DBObject = Q(),
                            sort: DBObject = Q(),
@@ -121,19 +115,21 @@ object MongoDBActor {
                            returnNew: Boolean = true,
                            upsert: Boolean = false)
 
-  case class FindAndRemove(name: String, query: DBObject)
+  case class FindAndRemove(recipient: ActorRef, name: String, query: DBObject)
 
-  case class Insert(name: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
+  case class Insert(recipient: ActorRef, name: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
 
-  case class Save(name: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
+  case class Save(recipient: ActorRef, name: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
 
-  case class Update(name: String,
+  case class Update(recipient: ActorRef,
+                    name: String,
                     query: DBObject,
                     doc: DBObject,
                     multi: Boolean = false,
                     concern: WriteConcern = WriteConcern.JournalSafe)
 
-  case class Upsert(name: String,
+  case class Upsert(recipient: ActorRef,
+                    name: String,
                     query: DBObject,
                     doc: DBObject,
                     multi: Boolean = false,

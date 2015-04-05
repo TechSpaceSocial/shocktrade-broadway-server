@@ -11,14 +11,16 @@ import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.services.YFStockQuoteService
 import com.shocktrade.services.YFStockQuoteService.YFStockQuote
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 /**
  * Stock Quote Transform Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class CSVQuoteTransformActor(collectionName: String, target: ActorRef)(implicit ec: ExecutionContext) extends Actor with ActorLogging {
+class CSVQuoteTransformActor(collectionName: String, target: ActorRef) extends Actor with ActorLogging {
+
+  import context.dispatcher
+
   override def receive = {
     case m: MessageReceived =>
       val startTime = System.currentTimeMillis()
@@ -50,8 +52,8 @@ class CSVQuoteTransformActor(collectionName: String, target: ActorRef)(implicit 
 
         // if the symbol was changed  update the old record
         newSymbol.foreach { symbol =>
-          target ! Upsert(collectionName, query = O("symbol" -> oldSymbol), doc = O("symbol" -> oldSymbol))
-          target ! Upsert(collectionName, query = O("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
+          target ! Upsert(self, collectionName, query = O("symbol" -> oldSymbol), doc = O("symbol" -> oldSymbol))
+          target ! Upsert(self, collectionName, query = O("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
         }
       }
     }
@@ -68,6 +70,7 @@ class CSVQuoteTransformActor(collectionName: String, target: ActorRef)(implicit 
     val theSymbol = newSymbol ?? oldSymbol
 
     Upsert(
+      self,
       collectionName,
       query = O("symbol" -> theSymbol),
       doc = $set(
