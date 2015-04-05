@@ -14,6 +14,7 @@ import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.core.util.FileHelper._
 import com.ldaniels528.broadway.core.util.{FileMonitor, HttpMonitor}
 import com.ldaniels528.broadway.server.BroadwayServer._
+import com.ldaniels528.broadway.server.http.BroadwayHttpServer
 import com.ldaniels528.trifecta.util.OptionHelper._
 import org.slf4j.LoggerFactory
 
