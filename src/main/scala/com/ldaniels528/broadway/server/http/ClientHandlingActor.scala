@@ -5,6 +5,7 @@ import java.net.URL
 
 import akka.actor.{Actor, ActorLogging, Props, _}
 import akka.util.Timeout
+import com.ldaniels528.broadway.util.JsonHelper
 import com.ldaniels528.trifecta.util.ResourceHelper._
 import org.apache.commons.io.IOUtils
 import spray.can.Http
@@ -20,7 +21,7 @@ import scala.language.postfixOps
  * Client Handling Actor
  * @author lawrence.daniels@gmail.com
  */
-class ClientHandlingActor() extends Actor with ActorLogging {
+class ClientHandlingActor(bsc: ServerContext) extends Actor with ActorLogging {
   implicit val timeout: Timeout = 1.second // for the actor 'asks'
 
   override def receive = {
@@ -32,21 +33,13 @@ class ClientHandlingActor() extends Actor with ActorLogging {
 
     case HttpRequest(GET, Uri.Path("/api/narratives"), _, _, _) =>
       sender ! HttpResponse(entity = HttpEntity(
-        contentType = ContentType(mediaType = `application/json` /*, charset = Some(`UTF-8`)*/),
-        string = """{ "name": "Bob", "firstName": "Parr", "age": 32 }"""
-      ))
+        contentType = ContentType(mediaType = `application/json`), string = JsonHelper.toJsonString(bsc.narratives)))
 
-    case r@HttpRequest(POST, Uri.Path("/file-upload"), headers, entity: HttpEntity.NonEmpty, protocol) =>
-      // emulate chunked behavior for POST requests to this path
-      val parts = r.asPartStream()
-      val client = sender()
-      val handler = context.actorOf(Props(new FileUploadHandler(client, parts.head.asInstanceOf[ChunkedRequestStart])))
-      parts.tail.foreach(handler ! _)
+    case req@HttpRequest(POST, Uri.Path("/api/file-upload"), headers, entity: HttpEntity.NonEmpty, protocol) =>
+      handleFileUpload(req)
 
-    case s@ChunkedRequestStart(HttpRequest(POST, Uri.Path("/file-upload"), _, _, _)) =>
-      val client = sender()
-      val handler = context.actorOf(Props(new FileUploadHandler(client, s)))
-      sender ! RegisterChunkHandler(handler)
+    case req@ChunkedRequestStart(HttpRequest(POST, Uri.Path("/api/file-upload"), _, _, _)) =>
+      handleChunkedRequestStart(req)
 
     case req: HttpRequest => sender ! getHttpContent(req)
 
@@ -95,5 +88,18 @@ class ClientHandlingActor() extends Actor with ActorLogging {
   }
 
   private def getResource(name: String) = Option(getClass.getResource(name))
+
+  private def handleFileUpload(request: HttpRequest): Unit = {
+    val parts = request.asPartStream()
+    val client = sender()
+    val handler = context.actorOf(Props(new FileUploadHandler(client, parts.head.asInstanceOf[ChunkedRequestStart])))
+    parts.tail.foreach(handler ! _)
+  }
+
+  private def handleChunkedRequestStart(s: ChunkedRequestStart): Unit = {
+    val client = sender()
+    val handler = context.actorOf(Props(new FileUploadHandler(client, s)))
+    sender ! RegisterChunkHandler(handler)
+  }
 
 }

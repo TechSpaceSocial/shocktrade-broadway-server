@@ -1,6 +1,6 @@
 package com.ldaniels528.broadway.server.http
 
-import akka.actor.{Props, _}
+import akka.actor._
 import akka.io.IO
 import akka.io.Tcp.Bound
 import akka.pattern.ask
@@ -15,9 +15,9 @@ import scala.language.postfixOps
  * Broadway Http Server
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class BroadwayHttpServer(host: String, port: Int)(implicit system: ActorSystem) {
+class BroadwayHttpServer(bsc: ServerContext, host: String, port: Int)(implicit system: ActorSystem) {
   private lazy val logger = LoggerFactory.getLogger(getClass)
-  private val listenerActor = system.actorOf(Props[ClientHandlingActor], "clientHandler")
+  private val listenerActor = system.actorOf(Props(new ClientHandlingActor(bsc)), "clientHandler")
 
   import system.dispatcher
 

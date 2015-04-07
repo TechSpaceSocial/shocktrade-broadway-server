@@ -1,6 +1,6 @@
 package com.ldaniels528.broadway.server
 
-import java.io.{File, FilenameFilter}
+import java.io.File
 import java.net.URL
 import java.util.concurrent.atomic.AtomicLong
 
@@ -42,9 +42,6 @@ class BroadwayServer(config: ServerConfig) {
   // create the narrative processing actor
   private val processingActor = system.actorOf(Props(new NarrativeProcessingActor(config)).withRouter(RoundRobinPool(nrOfInstances = 10)))
 
-  // setup the HTTP server
-  private val httpServer = config.httpInfo.map(hi => new BroadwayHttpServer(host = hi.host, port = hi.port))
-
   /**
    * Start the server
    */
@@ -52,7 +49,10 @@ class BroadwayServer(config: ServerConfig) {
     logger.info(s"Broadway Server v$Version")
 
     // initialize the configuration
-    config.init()
+    val bsc = config.init()
+
+    // setup the HTTP server
+    val httpServer = config.httpInfo.map(hi => new BroadwayHttpServer(bsc, host = hi.host, port = hi.port))
 
     // optionally start the HTTP server
     for {
@@ -64,8 +64,7 @@ class BroadwayServer(config: ServerConfig) {
     }
 
     // load the anthologies
-    val anthologies = loadAnthologies(config.getAnthologiesDirectory)
-    anthologies foreach { anthology =>
+    bsc.anthologies foreach { anthology =>
       logger.info(s"Configuring anthology '${anthology.id}'...")
 
       // setup scheduled jobs
@@ -125,19 +124,6 @@ class BroadwayServer(config: ServerConfig) {
    */
   private def handleIncomingResource(site: HttpLocation, url: URL) {
     logger.info(s"url: $url")
-  }
-
-  /**
-   * Loads all anthologies from the given directory
-   * @param directory the given directory
-   * @return the collection of successfully parsed [[Anthology]] objects
-   */
-  private def loadAnthologies(directory: File): Seq[Anthology] = {
-    logger.info(s"Searching for narrative configuration files in '${directory.getAbsolutePath}'...")
-    val xmlFile = directory.listFiles(new FilenameFilter {
-      override def accept(dir: File, name: String): Boolean = name.toLowerCase.endsWith(".xml")
-    })
-    xmlFile.toSeq flatMap (f => AnthologyParser.parse(FileResource(f.getAbsolutePath)))
   }
 
   /**
