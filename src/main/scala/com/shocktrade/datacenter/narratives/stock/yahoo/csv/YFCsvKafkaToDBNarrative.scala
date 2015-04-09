@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.yahoo
+package com.shocktrade.datacenter.narratives.stock.yahoo.csv
 
 import java.lang.{Double => JDouble}
 import java.util.{Date, Properties}
@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory
  * CSV Stock Quotes: Kafka/Avro to MongoDB Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class YahooCsvKafkaToMongoDBNarrative(config: ServerConfig, id: String, props: Properties)
+class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props) {
   lazy val log = LoggerFactory.getLogger(getClass)
 

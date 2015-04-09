@@ -10,18 +10,18 @@ import org.slf4j.Logger
  * Stock Symbol Querying Capability
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-trait SymbolQuerying {
+trait ShockTradeSymbolQuerying {
 
   def log: Logger
 
-  def symbolLookupQuery(recipient: ActorRef, collectionName: String, lastModified: DateTime, batchSize: Int = 64) = {
+  def symbolLookupQuery(recipient: ActorRef, collectionName: String, lastModified: DateTime, fetchSize: Int = 64) = {
     log.info(s"Retrieving symbols from collection $collectionName (modified since $lastModified)...")
     Find(
       recipient,
       name = collectionName,
       query = O("active" -> true, "yfDynUpdates" -> true) ++ $or("yfDynLastUpdated" $exists false, "yfDynLastUpdated" $lte lastModified),
       fields = O("symbol" -> 1),
-      maxBatchSize = batchSize)
+      maxFetchSize = fetchSize)
   }
 
 }

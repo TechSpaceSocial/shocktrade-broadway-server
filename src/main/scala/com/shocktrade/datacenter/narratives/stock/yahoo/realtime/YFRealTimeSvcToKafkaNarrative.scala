@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.yahoo
+package com.shocktrade.datacenter.narratives.stock.yahoo.realtime
 
 import java.lang.{Double => JDouble, Long => JLong}
 import java.util.{Date, Properties}
@@ -15,7 +15,7 @@ import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.avro.YahooRealTimeQuoteRecord
-import com.shocktrade.datacenter.narratives.stock.SymbolQuerying
+import com.shocktrade.datacenter.narratives.stock.ShockTradeSymbolQuerying
 import com.shocktrade.services.YFRealtimeStockQuoteService
 import com.shocktrade.services.YFRealtimeStockQuoteService.YFRealtimeQuote
 import org.joda.time.DateTime
@@ -28,9 +28,9 @@ import scala.util.{Failure, Success, Try}
  * Yahoo! Finance Real-time Quotes Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class YahooRealTimeQuotesNarrative(config: ServerConfig, id: String, props: Properties)
+class YFRealTimeSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
-  with SymbolQuerying {
+  with ShockTradeSymbolQuerying {
   lazy val log = LoggerFactory.getLogger(getClass)
 
   // extract the properties we need
@@ -55,9 +55,8 @@ class YahooRealTimeQuotesNarrative(config: ServerConfig, id: String, props: Prop
       docs.flatMap(_.getAs[String]("symbol")) foreach { symbol =>
         Try {
           kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFRealtimeStockQuoteService.getQuoteSync(symbol)))
-          counter += 1
         } match {
-          case Success(_) =>
+          case Success(_) => counter += 1
           case Failure(e) =>
             log.error(s"Failed to publish real-time quote for $symbol: ${e.getMessage}")
         }
@@ -69,7 +68,7 @@ class YahooRealTimeQuotesNarrative(config: ServerConfig, id: String, props: Prop
   onStart { resource =>
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,
     // and send it to Kafka
-    mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5), batchSize = 5)
+    mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5), fetchSize = 5)
   }
 
   private def toAvro(quote: YFRealtimeQuote) = {

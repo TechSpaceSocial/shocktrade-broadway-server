@@ -3,14 +3,29 @@
 
     <!-- Schedules -->
 
+    <schedule id="PeriodicSchedule" class="com.shocktrade.datacenter.schedules.PeriodicSchedule"/>
     <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
 
     <!-- Narratives -->
 
-    <narrative id="KeyStatsImportNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooKeyStatisticsNarrative">
+    <narrative id="YFKeyStatisticsSvcToKafkaNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.keystats.YFKeyStatisticsSvcToKafkaNarrative">
         <properties>
             <property key="kafka.topic">yahoo.keystats.avro</property>
+            <property key="mongo.database">shocktrade</property>
+            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
+            <property key="mongo.collection">Stocks</property>
+            <property key="zookeeper.connect">dev801:2181</property>
+        </properties>
+    </narrative>
+
+    <narrative id="YFKeyStatisticsKafkaToDBNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.keystats.YFKeyStatisticsKafkaToDBNarrative">
+        <properties>
+            <property key="kafka.topic">yahoo.keystats.avro</property>
+            <property key="mongo.database">shocktrade</property>
+            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
+            <property key="mongo.collection">Stocks</property>
             <property key="zookeeper.connect">dev801:2181</property>
         </properties>
     </narrative>
@@ -18,7 +33,11 @@
     <!-- Triggers -->
 
     <trigger
-            schedule-ref="TradingSchedule"
-            narrative-ref="KeyStatsImportNarrative"/>
+            schedule-ref="PeriodicSchedule"
+            narrative-ref="YFKeyStatisticsSvcToKafkaNarrative"/>
+
+    <trigger
+            schedule-ref="PeriodicSchedule"
+            narrative-ref="YFKeyStatisticsSvcToKafkaNarrative"/>
 
 </anthology>

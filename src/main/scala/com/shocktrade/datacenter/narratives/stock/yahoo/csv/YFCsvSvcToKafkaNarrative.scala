@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.yahoo
+package com.shocktrade.datacenter.narratives.stock.yahoo.csv
 
 import java.lang.{Double => JDouble, Long => JLong}
 import java.util.Properties
@@ -13,7 +13,7 @@ import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports._
 import com.shocktrade.avro.CSVQuoteRecord
-import com.shocktrade.datacenter.narratives.stock.SymbolQuerying
+import com.shocktrade.datacenter.narratives.stock.ShockTradeSymbolQuerying
 import com.shocktrade.services.YFStockQuoteService
 import com.shocktrade.services.YFStockQuoteService.YFStockQuote
 import org.joda.time.DateTime
@@ -23,9 +23,9 @@ import org.slf4j.LoggerFactory
  * CSV Stock Quotes: Yahoo! Finance to Kafka Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class YahooCsvToKafkaNarrative(config: ServerConfig, id: String, props: Properties)
+class YFCsvSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
-  with SymbolQuerying {
+  with ShockTradeSymbolQuerying {
   lazy val log = LoggerFactory.getLogger(getClass)
   val parameters = YFStockQuoteService.getParams(
     "symbol", "exchange", "lastTrade", "tradeDate", "tradeTime", "change", "changePct", "prevClose", "open", "close",
@@ -60,7 +60,7 @@ class YahooCsvToKafkaNarrative(config: ServerConfig, id: String, props: Properti
     // 1. Query all symbols not update in the last 5 minutes
     // 2. Send the symbols to the transforming actor, which will load the quote, transform it to Avro
     // 3. Write each Avro record to Kafka
-    mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5))
+    mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5), fetchSize = 32)
   }
 
   private def toAvro(quote: YFStockQuote) = {

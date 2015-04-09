@@ -9,8 +9,8 @@
 
     <!-- Narratives -->
 
-    <narrative id="YahooCsvToKafkaNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooCsvToKafkaNarrative">
+    <narrative id="YahooCsvSvcToKafkaNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.csv.YFCsvSvcToKafkaNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.avro</property>
             <property key="mongo.database">shocktrade</property>
@@ -20,8 +20,8 @@
         </properties>
     </narrative>
 
-    <narrative id="YahooCsvKafkaToMongoDBNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooCsvKafkaToMongoDBNarrative">
+    <narrative id="YahooCsvKafkaToDBNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.csv.YFCsvKafkaToDBNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.avro</property>
             <property key="mongo.database">shocktrade</property>
@@ -35,10 +35,10 @@
 
     <trigger
             schedule-ref="NonRunningSchedule"
-            narrative-ref="YahooCsvToKafkaNarrative"/>
+            narrative-ref="YahooCsvSvcToKafkaNarrative"/>
 
     <trigger
             schedule-ref="NonRunningSchedule"
-            narrative-ref="YahooCsvKafkaToMongoDBNarrative"/>
+            narrative-ref="YahooCsvKafkaToDBNarrative"/>
 
 </anthology>

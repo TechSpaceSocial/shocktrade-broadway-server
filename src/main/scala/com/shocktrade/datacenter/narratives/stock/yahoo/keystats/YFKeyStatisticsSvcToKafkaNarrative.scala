@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.yahoo
+package com.shocktrade.datacenter.narratives.stock.yahoo.keystats
 
 import java.lang.{Double => JDouble, Long => JLong}
 import java.util.Properties
@@ -13,7 +13,7 @@ import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports._
 import com.shocktrade.avro.KeyStatisticsRecord
-import com.shocktrade.datacenter.narratives.stock.SymbolQuerying
+import com.shocktrade.datacenter.narratives.stock.ShockTradeSymbolQuerying
 import com.shocktrade.services.YFKeyStatisticsService
 import com.shocktrade.services.YFKeyStatisticsService.YFKeyStatistics
 import org.joda.time.DateTime
@@ -23,9 +23,9 @@ import org.slf4j.LoggerFactory
  * Yahoo! Finance Key Statistics Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class YahooKeyStatisticsNarrative(config: ServerConfig, id: String, props: Properties)
+class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
-  with SymbolQuerying {
+  with ShockTradeSymbolQuerying {
   lazy val log = LoggerFactory.getLogger(getClass)
 
   // extract the properties we need
@@ -54,7 +54,7 @@ class YahooKeyStatisticsNarrative(config: ServerConfig, id: String, props: Prope
   onStart { resource =>
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,
     // and send it to Kafka
-    mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5))
+    mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusHours(24), fetchSize = 5)
   }
 
   private def toAvro(ks: YFKeyStatistics) = {

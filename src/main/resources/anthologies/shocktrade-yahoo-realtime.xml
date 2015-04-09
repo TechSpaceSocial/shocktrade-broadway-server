@@ -4,13 +4,12 @@
     <!-- Schedules -->
 
     <schedule id="PeriodicSchedule" class="com.shocktrade.datacenter.schedules.PeriodicSchedule"/>
-    <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.triggers.schedules.ScheduleOnce"/>
     <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
 
     <!-- Narratives -->
 
-    <narrative id="YahooRealTimeQuotesNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooRealTimeQuotesNarrative">
+    <narrative id="YahooRealTimeSvcToKafkaNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.realtime.YFRealTimeSvcToKafkaNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.realtime.avro</property>
             <property key="mongo.database">shocktrade</property>
@@ -20,8 +19,8 @@
         </properties>
     </narrative>
 
-    <narrative id="YahooRealTimeToMongoDBNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooRealTimeToMongoDBNarrative">
+    <narrative id="YahooRealTimeKafkaToDBNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.realtime.YFRealTimeKafkaToDBNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.realtime.avro</property>
             <property key="mongo.database">shocktrade</property>
@@ -35,10 +34,10 @@
 
     <trigger
             schedule-ref="TradingSchedule"
-            narrative-ref="YahooRealTimeQuotesNarrative"/>
+            narrative-ref="YahooRealTimeSvcToKafkaNarrative"/>
 
     <trigger
             schedule-ref="PeriodicSchedule"
-            narrative-ref="YahooRealTimeToMongoDBNarrative"/>
+            narrative-ref="YahooRealTimeKafkaToDBNarrative"/>
 
 </anthology>

@@ -92,7 +92,7 @@ object MongoDBActor {
 
   /**
    * Parses a MongoDB server list
-   * @param serverList the given MongoDB server list (e.g. "dev601:27017,dev602:27017,dev603:27017")
+   * @param serverList the given MongoDB server list (e.g. "dev801:27017,dev802:27017,dev803:27017")
    * @return a [[List]] of [[ServerAddress]] objects
    */
   def parseServerList(serverList: String): List[ServerAddress] = {
@@ -105,7 +105,7 @@ object MongoDBActor {
     }
   }
 
-  case class Find(recipient: ActorRef, name: String, query: DBObject, fields: DBObject = Q(), maxBatchSize: Int = 32)
+  case class Find(recipient: ActorRef, name: String, query: DBObject, fields: DBObject = Q(), maxFetchSize: Int = 32)
 
   case class FindOne(recipient: ActorRef, name: String, query: DBObject, fields: DBObject = Q())
 

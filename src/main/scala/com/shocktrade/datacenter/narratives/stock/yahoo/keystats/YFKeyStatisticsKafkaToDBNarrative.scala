@@ -1,6 +1,5 @@
-package com.shocktrade.datacenter.narratives.stock.yahoo
+package com.shocktrade.datacenter.narratives.stock.yahoo.keystats
 
-import java.lang.{Double => JDouble}
 import java.util.{Date, Properties}
 
 import com.ldaniels528.broadway.BroadwayNarrative
@@ -11,10 +10,10 @@ import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor.{Upsert, _}
 import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
+import com.ldaniels528.broadway.datasources.avro.AvroUtil._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports.{DBObject => O, _}
-import com.shocktrade.avro.YahooRealTimeQuoteRecord
-import com.shocktrade.datacenter.narratives.stock.yahoo.YahooRealTimeToMongoDBNarrative._
+import com.shocktrade.avro.KeyStatisticsRecord
 import org.apache.avro.generic.GenericRecord
 import org.slf4j.LoggerFactory
 
@@ -22,10 +21,10 @@ import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 
 /**
- * Yahoo Real-time Stock Quotes: Kafka/Avro to MongoDB Narrative
+ * Yahoo! Finance Key Statistics: Kafka to MongoDB Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class YahooRealTimeToMongoDBNarrative(config: ServerConfig, id: String, props: Properties)
+class YFKeyStatisticsKafkaToDBNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props) {
   val log = LoggerFactory.getLogger(getClass)
 
@@ -47,7 +46,7 @@ class YahooRealTimeToMongoDBNarrative(config: ServerConfig, id: String, props: P
 
   // create an actor to persist the Avro-encoded stock records to MongoDB
   lazy val transformer = prepareActor(new TransformingActor({
-    case AvroMessageReceived(topic, partition, offset, key, record) => persistQuote(record)
+    case AvroMessageReceived(topic, partition, offset, key, record) => persistKeyStatistics(record)
     case _: MongoWriteResult => true
     case message =>
       log.warn(s"Received unexpected message $message (${Option(message).map(_.getClass.getName).orNull})")
@@ -56,7 +55,7 @@ class YahooRealTimeToMongoDBNarrative(config: ServerConfig, id: String, props: P
 
   // finally, start the process by initiating the consumption of Avro stock records
   onStart { resource =>
-    kafkaConsumer ! StartConsuming(kafkaTopic, transformer, Some(YahooRealTimeQuoteRecord.getClassSchema))
+    kafkaConsumer ! StartConsuming(kafkaTopic, transformer, Some(KeyStatisticsRecord.getClassSchema))
   }
 
   // stop consuming messages when the narrative is deactivated
@@ -64,73 +63,20 @@ class YahooRealTimeToMongoDBNarrative(config: ServerConfig, id: String, props: P
     kafkaConsumer ! StopConsuming(kafkaTopic, transformer)
   }
 
-  private def persistQuote(rec: GenericRecord): Boolean = {
+  private def persistKeyStatistics(rec: GenericRecord): Boolean = {
     rec.asOpt[String]("symbol") foreach { symbol =>
       val fieldNames = rec.getSchema.getFields.map(_.name).toSeq
-      val changePct = rec.asOpt[JDouble]("changePct")
-      val prevClose = rec.asOpt[JDouble]("prevClose")
-      val lastTrade = rec.asOpt[JDouble]("lastTrade")
-      val high = rec.asOpt[JDouble]("high")
-      val low = rec.asOpt[JDouble]("low")
 
       // build the document
       val doc = rec.toMongoDB(fieldNames) ++ O(
-        // calculated fields
-        "changePct" -> (changePct getOrElse computeChangePct(prevClose, lastTrade)),
-        "spread" -> computeSpread(high, low),
-
-        // classification fields
-        "assetType" -> "Common Stock",
-        "assetClass" -> "Equity",
-
-        // administrative fields
-        "yfDynRespTimeMsec" -> rec.asOpt[String]("ResponseTimeMsec"),
-        "yfDynLastUpdated" -> new Date(),
+        "yfKeyStatsLastUpdated" -> new Date(),
         "lastUpdated" -> new Date()
       )
 
-      mongoWriter ! Upsert(
-        transformer,
-        mongoCollection,
-        query = O("symbol" -> symbol),
-        doc = $set(doc.toSeq: _*),
-        refObj = Some(rec))
-
+      mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> symbol), doc = $set(doc.toSeq: _*), refObj = Some(rec))
       counter += 1
     }
     true
-  }
-
-  private def computeSpread(high: Option[JDouble], low: Option[JDouble]) = {
-    for {
-      hi <- high
-      lo <- low
-    } yield if (lo != 0.0d) 100d * (hi - lo) / lo else 0.0d
-  }
-
-  private def computeChangePct(prevClose: Option[JDouble], lastTrade: Option[JDouble]): Option[JDouble] = {
-    for {
-      prev <- prevClose
-      last <- lastTrade
-      diff = last - prev
-    } yield (if (diff != 0) 100d * (diff / prev) else 0.0d): JDouble
-  }
-
-}
-
-object YahooRealTimeToMongoDBNarrative {
-
-  implicit class GenericRecordExtensions(val rec: GenericRecord) extends AnyVal {
-
-    def asOpt[T](key: String): Option[T] = Option(rec.get(key)).map(_.asInstanceOf[T])
-
-    def toMongoDB(keys: Seq[String]): O = {
-      val values = keys.map(key => (key, rec.get(key)))
-      values.foldLeft[O](O()) { case (doc, (key, value)) =>
-        doc ++ (key -> value)
-      }
-    }
-
   }
 
 }
