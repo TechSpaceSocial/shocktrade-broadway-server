@@ -16,7 +16,8 @@ import scala.reflect.ClassTag
  */
 case class BroadwayNarrative(config: ServerConfig, name: String, props: Properties) {
   protected implicit val executionContext = config.system.dispatcher
-  private var executable: Option[Option[Resource] => Unit] = None
+  private var setup: Option[Option[Resource] => Unit] = None
+  private var tearDown: Option[() => Unit] = None
 
   /**
    * Prepares a new actor for execution within the narrative
@@ -28,18 +29,29 @@ case class BroadwayNarrative(config: ServerConfig, name: String, props: Properti
   def prepareActor[T <: Actor : ClassTag](actor: => T, parallelism: Int = 1) = config.prepareActor(actor, parallelism)
 
   /**
-   * Setups the actions that will occur upon start of the topology
+   * Setups the actions that will occur upon start of the narrative
    * @param block the executable block
    */
   def onStart(block: Option[Resource] => Unit)(implicit ec: ExecutionContext) = {
-    executable = Option(block)
+    setup = Option(block)
   }
 
   /**
-   * Starts executing the topology
+   * Tears down the actions that were setup at the start of the narrative
+   * @param block the executable block
    */
-  def start(resource: Option[Resource]) {
-    executable.foreach(_(resource))
+  def onStop(block: () => Unit)(implicit ec: ExecutionContext) = {
+    tearDown = Option(block)
   }
+
+  /**
+   * Starts executing the narrative
+   */
+  def start(resource: Option[Resource]): Unit = setup.foreach(_(resource))
+
+  /**
+   * Stops the execution of the narrative
+   */
+  def stop(): Unit = tearDown.foreach(_())
 
 }

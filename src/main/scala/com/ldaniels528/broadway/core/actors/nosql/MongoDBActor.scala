@@ -28,33 +28,39 @@ class MongoDBActor(client: () => MongoClient, databaseName: String) extends Acto
   }
 
   override def receive = {
-    case Find(recipient, name, query, fields) =>
-      getCollection(name).foreach(_.find(query, fields) foreach (recipient ! MongoResult(_)))
+    case Find(recipient, name, query, fields, maxBatchSize) =>
+      getCollection(name).foreach { mc =>
+        mc.find(query, fields)
+          .sliding(maxBatchSize, maxBatchSize)
+          .foreach(recipient ! MongoFindResults(name, _))
+      }
 
     case FindAndModify(recipient, name, query, fields, sort, update, remove, returnNew, upsert) =>
-      getCollection(name).foreach(_.findAndModify(query, fields, sort, remove, update, returnNew, upsert) foreach (recipient ! MongoResult(_)))
+      getCollection(name)
+        .foreach(_.findAndModify(query, fields, sort, remove, update, returnNew, upsert)
+        .foreach(recipient ! MongoFindAndModifyResult(name, _)))
 
     case FindAndRemove(recipient, name, query) =>
-      getCollection(name).foreach(_.findAndRemove(query) foreach (recipient ! MongoResult(_)))
+      getCollection(name).foreach(mc => recipient ! MongoFindOneResult(name, mc.findAndRemove(query)))
 
     case FindOne(recipient, name, query, fields) =>
-      getCollection(name).foreach(mc => recipient ! mc.findOne(query, fields))
+      getCollection(name).foreach(mc => recipient ! MongoFindOneResult(name, mc.findOne(query, fields)))
 
     case FindOneByID(recipient, name, id, fields) =>
-      getCollection(name).foreach(recipient ! _.findOneByID(id, fields))
+      getCollection(name).foreach(mc => recipient ! MongoFindOneResult(name, mc.findOneByID(id, fields)))
 
-    case Insert(recipient, name, doc, concern) =>
-      getCollection(name).foreach(recipient ! _.insert(doc))
+    case Insert(recipient, name, doc, concern, refObj) =>
+      getCollection(name).foreach(mc => recipient ! MongoWriteResult(name, doc, mc.insert(doc, concern), refObj))
 
-    case Save(recipient, name, doc, concern) =>
-      getCollection(name).foreach(recipient ! _.save(doc, concern))
+    case Save(recipient, name, doc, concern, refObj) =>
+      getCollection(name).foreach(mc => recipient ! MongoWriteResult(name, doc, mc.save(doc, concern), refObj))
 
-    case Update(recipient, name, query, doc, multi, concern) =>
+    case Update(recipient, name, query, doc, multi, concern, refObj) =>
       val recipient = sender()
-      getCollection(name).foreach(recipient ! _.update(query, doc, upsert = false, multi, concern))
+      getCollection(name).foreach(mc => recipient ! MongoWriteResult(name, doc, mc.update(query, doc, upsert = false, multi, concern), refObj))
 
-    case Upsert(recipient, name, query, doc, multi, concern) =>
-      getCollection(name).foreach(recipient ! _.update(query, doc, upsert = true, multi, concern))
+    case Upsert(recipient, name, query, doc, multi, concern, refObj) =>
+      getCollection(name).foreach(mc => recipient ! MongoWriteResult(name, doc, mc.update(query, doc, upsert = true, multi, concern), refObj))
 
     case message =>
       unhandled(message)
@@ -99,7 +105,7 @@ object MongoDBActor {
     }
   }
 
-  case class Find(recipient: ActorRef, name: String, query: DBObject, fields: DBObject = Q())
+  case class Find(recipient: ActorRef, name: String, query: DBObject, fields: DBObject = Q(), maxBatchSize: Int = 32)
 
   case class FindOne(recipient: ActorRef, name: String, query: DBObject, fields: DBObject = Q())
 
@@ -117,24 +123,40 @@ object MongoDBActor {
 
   case class FindAndRemove(recipient: ActorRef, name: String, query: DBObject)
 
-  case class Insert(recipient: ActorRef, name: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
+  case class Insert(recipient: ActorRef,
+                    name: String,
+                    doc: DBObject,
+                    concern: WriteConcern = WriteConcern.JournalSafe,
+                    refObj: Option[Any] = None)
 
-  case class Save(recipient: ActorRef, name: String, doc: DBObject, concern: WriteConcern = WriteConcern.JournalSafe)
+  case class Save(recipient: ActorRef,
+                  name: String,
+                  doc: DBObject,
+                  concern: WriteConcern = WriteConcern.JournalSafe,
+                  refObj: Option[Any] = None)
 
   case class Update(recipient: ActorRef,
                     name: String,
                     query: DBObject,
                     doc: DBObject,
                     multi: Boolean = false,
-                    concern: WriteConcern = WriteConcern.JournalSafe)
+                    concern: WriteConcern = WriteConcern.JournalSafe,
+                    refObj: Option[Any] = None)
 
   case class Upsert(recipient: ActorRef,
                     name: String,
                     query: DBObject,
                     doc: DBObject,
                     multi: Boolean = false,
-                    concern: WriteConcern = WriteConcern.JournalSafe)
+                    concern: WriteConcern = WriteConcern.JournalSafe,
+                    refObj: Option[Any] = None)
 
-  case class MongoResult(doc: DBObject)
+  case class MongoFindOneResult(name: String, doc: Option[DBObject])
+
+  case class MongoFindResults(name: String, docs: Seq[DBObject])
+
+  case class MongoFindAndModifyResult(name: String, doc: DBObject)
+
+  case class MongoWriteResult(name: String, doc: DBObject, result: WriteResult, refObj: Option[Any])
 
 }

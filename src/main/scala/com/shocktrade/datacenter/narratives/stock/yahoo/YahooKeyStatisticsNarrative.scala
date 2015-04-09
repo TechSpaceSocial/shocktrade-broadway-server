@@ -17,6 +17,7 @@ import com.shocktrade.datacenter.narratives.stock.SymbolQuerying
 import com.shocktrade.services.YFKeyStatisticsService
 import com.shocktrade.services.YFKeyStatisticsService.YFKeyStatistics
 import org.joda.time.DateTime
+import org.slf4j.LoggerFactory
 
 /**
  * Yahoo! Finance Key Statistics Narrative
@@ -25,6 +26,7 @@ import org.joda.time.DateTime
 class YahooKeyStatisticsNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
   with SymbolQuerying {
+  lazy val log = LoggerFactory.getLogger(getClass)
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
@@ -41,8 +43,8 @@ class YahooKeyStatisticsNarrative(config: ServerConfig, id: String, props: Prope
 
   // create an actor to transform the MongoDB results to Avro-encoded records
   lazy val transformer = prepareActor(new TransformingActor({
-    case MongoResult(doc) =>
-      doc.getAs[String]("symbol") foreach { symbol =>
+    case MongoFindResults(coll, docs) =>
+      docs.flatMap(_.getAs[String]("symbol")) foreach { symbol =>
         kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFKeyStatisticsService.getKeyStatisticsSync(symbol)))
       }
       true

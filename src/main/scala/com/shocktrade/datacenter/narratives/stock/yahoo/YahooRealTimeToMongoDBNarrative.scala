@@ -9,20 +9,25 @@ import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor.{AvroMessageReceived, StartConsuming, StopConsuming}
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor.{Upsert, _}
+import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
-import com.ldaniels528.trifecta.util.OptionHelper._
 import com.mongodb.casbah.Imports.{DBObject => O, _}
-import com.shocktrade.avro.CSVQuoteRecord
+import com.shocktrade.avro.YahooRealTimeQuoteRecord
+import com.shocktrade.datacenter.narratives.stock.yahoo.YahooRealTimeToMongoDBNarrative._
+import org.apache.avro.generic.GenericRecord
 import org.slf4j.LoggerFactory
 
+import scala.collection.JavaConversions._
+import scala.concurrent.duration._
+
 /**
- * CSV Stock Quotes: Kafka/Avro to MongoDB Narrative
+ * Yahoo Real-time Stock Quotes: Kafka/Avro to MongoDB Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class YahooCsvKafkaToMongoDBNarrative(config: ServerConfig, id: String, props: Properties)
+class YahooRealTimeToMongoDBNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props) {
-  lazy val log = LoggerFactory.getLogger(getClass)
+  val log = LoggerFactory.getLogger(getClass)
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
@@ -31,16 +36,19 @@ class YahooCsvKafkaToMongoDBNarrative(config: ServerConfig, id: String, props: P
   val mongoCollection = props.getOrDie("mongo.collection")
   val zkConnect = props.getOrDie("zookeeper.connect")
 
+  // create a counter for statistics
+  val counter = new Counter(1.minute)((delta, rps) => log.info(f"$kafkaTopic -> $mongoCollection: $delta records ($rps%.1f records/second)"))
+
   // create a MongoDB actor for persisting stock quotes
-  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 2)
+  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 10)
 
   // create the Kafka message consumer
   lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), parallelism = 1)
 
   // create an actor to persist the Avro-encoded stock records to MongoDB
   lazy val transformer = prepareActor(new TransformingActor({
-    case AvroMessageReceived(topic, partition, offset, key, message: CSVQuoteRecord) => persistQuote(message)
-    case MongoWriteResult(coll, doc, result, refObj) => updateNewSymbol(refObj)
+    case AvroMessageReceived(topic, partition, offset, key, record) => persistQuote(record)
+    case _: MongoWriteResult => true
     case message =>
       log.warn(s"Received unexpected message $message (${Option(message).map(_.getClass.getName).orNull})")
       false
@@ -48,7 +56,7 @@ class YahooCsvKafkaToMongoDBNarrative(config: ServerConfig, id: String, props: P
 
   // finally, start the process by initiating the consumption of Avro stock records
   onStart { resource =>
-    kafkaConsumer ! StartConsuming(kafkaTopic, transformer, Some(CSVQuoteRecord.getClassSchema))
+    kafkaConsumer ! StartConsuming(kafkaTopic, transformer, Some(YahooRealTimeQuoteRecord.getClassSchema))
   }
 
   // stop consuming messages when the narrative is deactivated
@@ -56,52 +64,39 @@ class YahooCsvKafkaToMongoDBNarrative(config: ServerConfig, id: String, props: P
     kafkaConsumer ! StopConsuming(kafkaTopic, transformer)
   }
 
-  private def persistQuote(q: CSVQuoteRecord): Boolean = {
-    val newSymbol = Option(q.getNewSymbol)
-    val oldSymbol = Option(q.getSymbol) // q.oldSymbol
-    val theSymbol = newSymbol ?? oldSymbol
+  private def persistQuote(rec: GenericRecord): Boolean = {
+    rec.asOpt[String]("symbol") foreach { symbol =>
+      val fieldNames = rec.getSchema.getFields.map(_.name).toSeq
+      val changePct = rec.asOpt[JDouble]("changePct")
+      val prevClose = rec.asOpt[JDouble]("prevClose")
+      val lastTrade = rec.asOpt[JDouble]("lastTrade")
+      val high = rec.asOpt[JDouble]("high")
+      val low = rec.asOpt[JDouble]("low")
 
-    mongoWriter ! Upsert(
-      transformer,
-      mongoCollection,
-      query = O("symbol" -> theSymbol),
-      doc = $set(
-        "exchange" -> q.getExchange,
-        "lastTrade" -> q.getLastTrade,
-        "tradeDate" -> q.getTradeDate,
-        "tradeDateTime" -> q.getTradeDateTime,
-        "ask" -> q.getAsk,
-        "bid" -> q.getBid,
-        "prevClose" -> q.getPrevClose,
-        "open" -> q.getOpen,
-        "close" -> q.getClose,
-        "change" -> q.getChange,
-        "changePct" -> Option(q.getChangePct) ?? computeChangePct(Option(q.getPrevClose), Option(q.getLastTrade)),
-        "high" -> q.getHigh,
-        "low" -> q.getLow,
-        "spread" -> computeSpread(Option(q.getHigh), Option(q.getLow)),
-        "volume" -> q.getVolume,
+      // build the document
+      val doc = rec.toMongoDB(fieldNames) ++ O(
+        // calculated fields
+        "changePct" -> (changePct getOrElse computeChangePct(prevClose, lastTrade)),
+        "spread" -> computeSpread(high, low),
 
         // classification fields
         "assetType" -> "Common Stock",
         "assetClass" -> "Equity",
 
         // administrative fields
-        "yfDynRespTimeMsec" -> q.getResponseTimeMsec,
+        "yfDynRespTimeMsec" -> rec.asOpt[String]("ResponseTimeMsec"),
         "yfDynLastUpdated" -> new Date(),
-        "lastUpdated" -> new Date()),
-      refObj = Some(q))
-    true
-  }
+        "lastUpdated" -> new Date()
+      )
 
-  private def updateNewSymbol(refObj: Option[Any]): Boolean = {
-    refObj foreach { case record: CSVQuoteRecord =>
-      val newSymbol = Option(record.getNewSymbol)
-      val oldSymbol = Option(record.getSymbol) // record.oldSymbol
-      newSymbol.foreach { symbol =>
-        mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> oldSymbol), doc = O("symbol" -> oldSymbol))
-        mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
-      }
+      mongoWriter ! Upsert(
+        transformer,
+        mongoCollection,
+        query = O("symbol" -> symbol),
+        doc = $set(doc.toSeq: _*),
+        refObj = Some(rec))
+
+      counter += 1
     }
     true
   }
@@ -123,3 +118,19 @@ class YahooCsvKafkaToMongoDBNarrative(config: ServerConfig, id: String, props: P
 
 }
 
+object YahooRealTimeToMongoDBNarrative {
+
+  implicit class GenericRecordExtensions(val rec: GenericRecord) extends AnyVal {
+
+    def asOpt[T](key: String): Option[T] = Option(rec.get(key)).map(_.asInstanceOf[T])
+
+    def toMongoDB(keys: Seq[String]): O = {
+      val values = keys.map(key => (key, rec.get(key)))
+      values.foldLeft[O](O()) { case (doc, (key, value)) =>
+        doc ++ (key -> value)
+      }
+    }
+
+  }
+
+}

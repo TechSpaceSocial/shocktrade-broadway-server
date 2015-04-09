@@ -1,5 +1,13 @@
 <?xml version="1.0" ?>
 <anthology id="OTC/BB" version="1.0">
+
+    <!-- Schedules -->
+
+    <schedule id="PeriodicSchedule" class="com.shocktrade.datacenter.schedules.PeriodicSchedule"/>
+    <schedule id="NonRunningSchedule" class="com.ldaniels528.broadway.core.triggers.schedules.NonRunningSchedule"/>
+    <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.triggers.schedules.ScheduleOnce"/>
+    <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
+
     <!-- Narratives -->
 
     <narrative id="OTCBBDailyUpdateNarrative" class="com.shocktrade.datacenter.narratives.stock.OTCBBDailyUpdateNarrative">

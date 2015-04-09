@@ -6,7 +6,7 @@ import java.util.Properties
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.TransformingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
-import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.Publish
+import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.PublishAvro
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
@@ -17,6 +17,7 @@ import com.shocktrade.datacenter.narratives.stock.SymbolQuerying
 import com.shocktrade.services.YFStockQuoteService
 import com.shocktrade.services.YFStockQuoteService.YFStockQuote
 import org.joda.time.DateTime
+import org.slf4j.LoggerFactory
 
 /**
  * CSV Stock Quotes: Yahoo! Finance to Kafka Narrative
@@ -25,7 +26,7 @@ import org.joda.time.DateTime
 class YahooCsvToKafkaNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
   with SymbolQuerying {
-
+  lazy val log = LoggerFactory.getLogger(getClass)
   val parameters = YFStockQuoteService.getParams(
     "symbol", "exchange", "lastTrade", "tradeDate", "tradeTime", "change", "changePct", "prevClose", "open", "close",
     "high", "low", "high52Week", "low52Week", "volume", "marketCap", "errorMessage", "ask", "askSize", "bid", "bidSize")
@@ -46,11 +47,10 @@ class YahooCsvToKafkaNarrative(config: ServerConfig, id: String, props: Properti
 
   // create an actor to transform the MongoDB results to Avro-encoded records
   lazy val transformer = prepareActor(new TransformingActor({
-    case MongoResult(doc) =>
-      doc.getAs[String]("symbol") foreach { symbol =>
-        YFStockQuoteService.getCSVDataSync(Seq(symbol), parameters) foreach { csv =>
-          kafkaPublisher ! Publish(kafkaTopic, csv.getBytes("UTF-8"))
-        }
+    case MongoFindResults(coll, docs) =>
+      val symbols = docs.flatMap(_.getAs[String]("symbol"))
+      YFStockQuoteService.getQuotesSync(symbols, parameters) foreach { quote =>
+        kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(quote))
       }
       true
     case _ => false
@@ -103,6 +103,5 @@ class YahooCsvToKafkaNarrative(config: ServerConfig, id: String, props: Properti
       diff = last - prev
     } yield if (diff != 0) 100d * (diff / prev) else 0.0d
   }
-
 
 }

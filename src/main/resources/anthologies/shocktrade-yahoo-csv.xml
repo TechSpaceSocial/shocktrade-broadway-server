@@ -3,9 +3,8 @@
 
     <!-- Schedules -->
 
-    <schedule id="ContinuousSchedule" class="com.shocktrade.datacenter.schedules.ContinuousSchedule"/>
-    <schedule id="NonRunningSchedule" class="com.ldaniels528.broadway.core.schedules.NonRunningSchedule"/>
-    <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.schedules.ScheduleOnce"/>
+    <schedule id="NonRunningSchedule" class="com.ldaniels528.broadway.core.triggers.schedules.NonRunningSchedule"/>
+    <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.triggers.schedules.ScheduleOnce"/>
     <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
 
     <!-- Narratives -->
@@ -13,9 +12,9 @@
     <narrative id="YahooCsvToKafkaNarrative"
                class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooCsvToKafkaNarrative">
         <properties>
-            <property key="kafka.topic">yahoo.quotes.csv</property>
+            <property key="kafka.topic">yahoo.quotes.avro</property>
             <property key="mongo.database">shocktrade</property>
-            <property key="mongo.replicas">dev601:27017</property>
+            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
             <property key="mongo.collection">Stocks</property>
             <property key="zookeeper.connect">dev801:2181</property>
         </properties>
@@ -24,10 +23,10 @@
     <narrative id="YahooCsvKafkaToMongoDBNarrative"
                class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooCsvKafkaToMongoDBNarrative">
         <properties>
-            <property key="kafka.topic">yahoo.quotes.csv</property>
+            <property key="kafka.topic">yahoo.quotes.avro</property>
             <property key="mongo.database">shocktrade</property>
-            <property key="mongo.replicas">dev601:27017</property>
-            <property key="mongo.collection">Stocks3</property>
+            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
+            <property key="mongo.collection">Stocks</property>
             <property key="zookeeper.connect">dev801:2181</property>
         </properties>
     </narrative>
@@ -35,7 +34,7 @@
     <!-- Triggers -->
 
     <trigger
-            schedule-ref="TradingSchedule"
+            schedule-ref="NonRunningSchedule"
             narrative-ref="YahooCsvToKafkaNarrative"/>
 
     <trigger

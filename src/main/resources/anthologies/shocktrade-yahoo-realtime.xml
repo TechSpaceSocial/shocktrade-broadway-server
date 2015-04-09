@@ -3,7 +3,8 @@
 
     <!-- Schedules -->
 
-    <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.schedules.ScheduleOnce"/>
+    <schedule id="PeriodicSchedule" class="com.shocktrade.datacenter.schedules.PeriodicSchedule"/>
+    <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.triggers.schedules.ScheduleOnce"/>
     <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
 
     <!-- Narratives -->
@@ -13,7 +14,18 @@
         <properties>
             <property key="kafka.topic">yahoo.quotes.realtime.avro</property>
             <property key="mongo.database">shocktrade</property>
-            <property key="mongo.replicas">dev601:27017</property>
+            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
+            <property key="mongo.collection">Stocks</property>
+            <property key="zookeeper.connect">dev801:2181</property>
+        </properties>
+    </narrative>
+
+    <narrative id="YahooRealTimeToMongoDBNarrative"
+               class="com.shocktrade.datacenter.narratives.stock.yahoo.YahooRealTimeToMongoDBNarrative">
+        <properties>
+            <property key="kafka.topic">yahoo.quotes.realtime.avro</property>
+            <property key="mongo.database">shocktrade</property>
+            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
             <property key="mongo.collection">Stocks</property>
             <property key="zookeeper.connect">dev801:2181</property>
         </properties>
@@ -24,5 +36,9 @@
     <trigger
             schedule-ref="TradingSchedule"
             narrative-ref="YahooRealTimeQuotesNarrative"/>
+
+    <trigger
+            schedule-ref="PeriodicSchedule"
+            narrative-ref="YahooRealTimeToMongoDBNarrative"/>
 
 </anthology>

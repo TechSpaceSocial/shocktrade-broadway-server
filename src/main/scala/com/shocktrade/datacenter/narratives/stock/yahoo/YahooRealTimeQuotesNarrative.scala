@@ -10,6 +10,7 @@ import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.PublishAvro
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
+import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports.{DBObject => O, _}
@@ -18,6 +19,10 @@ import com.shocktrade.datacenter.narratives.stock.SymbolQuerying
 import com.shocktrade.services.YFRealtimeStockQuoteService
 import com.shocktrade.services.YFRealtimeStockQuoteService.YFRealtimeQuote
 import org.joda.time.DateTime
+import org.slf4j.LoggerFactory
+
+import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 /**
  * Yahoo! Finance Real-time Quotes Narrative
@@ -26,6 +31,7 @@ import org.joda.time.DateTime
 class YahooRealTimeQuotesNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
   with SymbolQuerying {
+  lazy val log = LoggerFactory.getLogger(getClass)
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
@@ -38,13 +44,23 @@ class YahooRealTimeQuotesNarrative(config: ServerConfig, id: String, props: Prop
   lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 1)
 
   // create a Kafka publishing actor
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 1)
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 10)
+
+  // create a counter for statistics
+  val counter = new Counter(1.minute)((delta, rps) => log.info(f"Yahoo -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
 
   // create an actor to transform the MongoDB results to Avro-encoded records
   lazy val transformer = prepareActor(new TransformingActor({
-    case MongoResult(doc) =>
-      doc.getAs[String]("symbol") foreach { symbol =>
-        kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFRealtimeStockQuoteService.getQuoteSync(symbol)))
+    case MongoFindResults(coll, docs) =>
+      docs.flatMap(_.getAs[String]("symbol")) foreach { symbol =>
+        Try {
+          kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFRealtimeStockQuoteService.getQuoteSync(symbol)))
+          counter += 1
+        } match {
+          case Success(_) =>
+          case Failure(e) =>
+            log.error(s"Failed to publish real-time quote for $symbol: ${e.getMessage}")
+        }
       }
       true
     case _ => false
@@ -53,7 +69,7 @@ class YahooRealTimeQuotesNarrative(config: ServerConfig, id: String, props: Prop
   onStart { resource =>
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,
     // and send it to Kafka
-    mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5))
+    mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5), batchSize = 5)
   }
 
   private def toAvro(quote: YFRealtimeQuote) = {

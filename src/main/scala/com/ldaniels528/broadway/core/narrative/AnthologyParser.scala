@@ -2,9 +2,9 @@ package com.ldaniels528.broadway.core.narrative
 
 import java.util.Properties
 
-import com.ldaniels528.broadway.core.location.{FileLocation, HttpLocation, Location}
+import com.ldaniels528.broadway.core.triggers.location.{FileLocation, HttpLocation, Location}
 import com.ldaniels528.broadway.core.resources._
-import com.ldaniels528.broadway.core.schedules.Scheduling
+import com.ldaniels528.broadway.core.triggers.schedules.Scheduling
 import com.ldaniels528.broadway.core.triggers.Trigger
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.core.util.XMLHelper._

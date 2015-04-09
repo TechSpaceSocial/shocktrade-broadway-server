@@ -2,7 +2,7 @@ package com.ldaniels528.broadway.core.triggers
 
 import com.ldaniels528.broadway.core.narrative.NarrativeDescriptor
 import com.ldaniels528.broadway.core.resources.Resource
-import com.ldaniels528.broadway.core.schedules.Scheduling
+import com.ldaniels528.broadway.core.triggers.schedules.Scheduling
 
 /**
  * Represents a Narrative Trigger

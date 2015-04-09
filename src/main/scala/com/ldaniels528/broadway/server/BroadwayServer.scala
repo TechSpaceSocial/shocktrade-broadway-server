@@ -8,7 +8,7 @@ import akka.actor.Props
 import akka.routing.RoundRobinPool
 import com.ldaniels528.broadway.core.actors.NarrativeProcessingActor
 import com.ldaniels528.broadway.core.actors.NarrativeProcessingActor.RunJob
-import com.ldaniels528.broadway.core.location.{FileLocation, HttpLocation, Location}
+import com.ldaniels528.broadway.core.triggers.location.{FileLocation, HttpLocation, Location}
 import com.ldaniels528.broadway.core.narrative._
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.core.util.FileHelper._

@@ -1,6 +1,6 @@
 package com.shocktrade.datacenter.schedules
 
-import com.ldaniels528.broadway.core.schedules.Scheduling
+import com.ldaniels528.broadway.core.triggers.schedules.Scheduling
 import com.shocktrade.services.util.DateUtil
 
 /**

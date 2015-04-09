@@ -1,12 +1,12 @@
 package com.shocktrade.datacenter.schedules
 
-import com.ldaniels528.broadway.core.schedules.Scheduling
+import com.ldaniels528.broadway.core.triggers.schedules.Scheduling
 
 /**
- * Represents a continuously active schedule
+ * Represents a periodically active schedule
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-case class ContinuousSchedule(id: String) extends Scheduling {
+case class PeriodicSchedule(id: String) extends Scheduling {
   private var lastCheckMillis: Long = 0
 
   override def isEligible(eventTime: Long) = {
