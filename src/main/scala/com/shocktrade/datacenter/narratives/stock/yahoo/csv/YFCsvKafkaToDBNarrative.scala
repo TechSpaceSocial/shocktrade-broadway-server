@@ -1,6 +1,6 @@
 package com.shocktrade.datacenter.narratives.stock.yahoo.csv
 
-import java.lang.{Double => JDouble}
+import java.lang.{Double => JDouble, Long => JLong}
 import java.util.{Date, Properties}
 
 import com.ldaniels528.broadway.BroadwayNarrative
@@ -9,20 +9,25 @@ import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor.{AvroMessageReceived, StartConsuming, StopConsuming}
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor.{Upsert, _}
+import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
+import com.ldaniels528.broadway.datasources.avro.AvroUtil._
 import com.ldaniels528.broadway.server.ServerConfig
-import com.ldaniels528.trifecta.util.OptionHelper._
 import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.avro.CSVQuoteRecord
-import org.slf4j.LoggerFactory
+import com.shocktrade.datacenter.narratives.stock.StockQuoteSupport
+import org.apache.avro.generic.GenericRecord
+
+import scala.collection.JavaConversions._
+import scala.concurrent.duration._
 
 /**
  * CSV Stock Quotes: Kafka/Avro to MongoDB Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Properties)
-  extends BroadwayNarrative(config, id, props) {
-  lazy val log = LoggerFactory.getLogger(getClass)
+  extends BroadwayNarrative(config, id, props)
+  with StockQuoteSupport {
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
@@ -32,14 +37,17 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
   val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a MongoDB actor for persisting stock quotes
-  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 2)
+  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 5)
 
   // create the Kafka message consumer
   lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), parallelism = 1)
 
+  // create a counter for statistics
+  val counter = new Counter(1.minute)((delta, rps) => log.info(f"$kafkaTopic -> $mongoCollection: $delta records ($rps%.1f records/second)"))
+
   // create an actor to persist the Avro-encoded stock records to MongoDB
   lazy val transformer = prepareActor(new TransformingActor({
-    case AvroMessageReceived(topic, partition, offset, key, message: CSVQuoteRecord) => persistQuote(message)
+    case AvroMessageReceived(topic, partition, offset, key, message) => persistQuote(message)
     case MongoWriteResult(coll, doc, result, refObj) => updateNewSymbol(refObj)
     case message =>
       log.warn(s"Received unexpected message $message (${Option(message).map(_.getClass.getName).orNull})")
@@ -56,41 +64,40 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
     kafkaConsumer ! StopConsuming(kafkaTopic, transformer)
   }
 
-  private def persistQuote(q: CSVQuoteRecord): Boolean = {
-    val newSymbol = Option(q.getNewSymbol)
-    val oldSymbol = Option(q.getSymbol) // q.oldSymbol
-    val theSymbol = newSymbol ?? oldSymbol
+  private def persistQuote(rec: GenericRecord): Boolean = {
+    rec.asOpt[String]("symbol") foreach { symbol =>
+      val fieldNames = rec.getSchema.getFields.map(_.name).toSeq
+      val changePct = rec.asOpt[JDouble]("changePct")
+      val prevClose = rec.asOpt[JDouble]("prevClose")
+      val lastTrade = rec.asOpt[JDouble]("lastTrade")
+      val high = rec.asOpt[JDouble]("high")
+      val low = rec.asOpt[JDouble]("low")
 
-    mongoWriter ! Upsert(
-      transformer,
-      mongoCollection,
-      query = O("symbol" -> theSymbol),
-      doc = $set(
-        "exchange" -> q.getExchange,
-        "lastTrade" -> q.getLastTrade,
-        "tradeDate" -> q.getTradeDate,
-        "tradeDateTime" -> q.getTradeDateTime,
-        "ask" -> q.getAsk,
-        "bid" -> q.getBid,
-        "prevClose" -> q.getPrevClose,
-        "open" -> q.getOpen,
-        "close" -> q.getClose,
-        "change" -> q.getChange,
-        "changePct" -> Option(q.getChangePct) ?? computeChangePct(Option(q.getPrevClose), Option(q.getLastTrade)),
-        "high" -> q.getHigh,
-        "low" -> q.getLow,
-        "spread" -> computeSpread(Option(q.getHigh), Option(q.getLow)),
-        "volume" -> q.getVolume,
+      // build the document
+      val doc = rec.toMongoDB(fieldNames) ++ O(
+        // calculated fields
+        "changePct" -> (changePct getOrElse computeChangePct(prevClose, lastTrade)),
+        "spread" -> computeSpread(high, low),
 
         // classification fields
         "assetType" -> "Common Stock",
         "assetClass" -> "Equity",
 
         // administrative fields
-        "yfDynRespTimeMsec" -> q.getResponseTimeMsec,
+        "yfDynRespTimeMsec" -> rec.asOpt[JLong]("responseTimeMsec"),
         "yfDynLastUpdated" -> new Date(),
-        "lastUpdated" -> new Date()),
-      refObj = Some(q))
+        "lastUpdated" -> new Date()
+      )
+
+      mongoWriter ! Upsert(
+        transformer,
+        mongoCollection,
+        query = O("symbol" -> symbol),
+        doc = $set(doc.toSeq: _*),
+        refObj = Some(rec))
+
+      counter += 1
+    }
     true
   }
 
@@ -104,21 +111,6 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
       }
     }
     true
-  }
-
-  private def computeSpread(high: Option[JDouble], low: Option[JDouble]) = {
-    for {
-      hi <- high
-      lo <- low
-    } yield if (lo != 0.0d) 100d * (hi - lo) / lo else 0.0d
-  }
-
-  private def computeChangePct(prevClose: Option[JDouble], lastTrade: Option[JDouble]): Option[JDouble] = {
-    for {
-      prev <- prevClose
-      last <- lastTrade
-      diff = last - prev
-    } yield (if (diff != 0) 100d * (diff / prev) else 0.0d): JDouble
   }
 
 }

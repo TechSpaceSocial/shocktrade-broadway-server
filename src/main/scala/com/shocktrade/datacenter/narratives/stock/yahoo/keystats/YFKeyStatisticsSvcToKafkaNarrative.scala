@@ -9,15 +9,17 @@ import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.PublishAvro
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
+import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports._
 import com.shocktrade.avro.KeyStatisticsRecord
-import com.shocktrade.datacenter.narratives.stock.ShockTradeSymbolQuerying
+import com.shocktrade.datacenter.narratives.stock.StockQuoteSupport
 import com.shocktrade.services.YFKeyStatisticsService
 import com.shocktrade.services.YFKeyStatisticsService.YFKeyStatistics
 import org.joda.time.DateTime
-import org.slf4j.LoggerFactory
+
+import scala.concurrent.duration._
 
 /**
  * Yahoo! Finance Key Statistics Narrative
@@ -25,11 +27,11 @@ import org.slf4j.LoggerFactory
  */
 class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
-  with ShockTradeSymbolQuerying {
-  lazy val log = LoggerFactory.getLogger(getClass)
+  with StockQuoteSupport {
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
+  val topicParallelism = props.getOrDie("kafka.topic.parallelism").toInt
   val mongoReplicas = props.getOrDie("mongo.replicas")
   val mongoDatabase = props.getOrDie("mongo.database")
   val mongoCollection = props.getOrDie("mongo.collection")
@@ -39,13 +41,17 @@ class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props
   lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 1)
 
   // create a Kafka publishing actor
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 1)
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = topicParallelism)
+
+  // create a counter for statistics
+  val counter = new Counter(1.minute)((delta, rps) => log.info(f"Yahoo -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
 
   // create an actor to transform the MongoDB results to Avro-encoded records
   lazy val transformer = prepareActor(new TransformingActor({
     case MongoFindResults(coll, docs) =>
       docs.flatMap(_.getAs[String]("symbol")) foreach { symbol =>
         kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFKeyStatisticsService.getKeyStatisticsSync(symbol)))
+        counter += 1
       }
       true
     case _ => false

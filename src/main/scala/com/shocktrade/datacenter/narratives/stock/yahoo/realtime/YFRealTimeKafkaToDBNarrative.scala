@@ -1,6 +1,6 @@
 package com.shocktrade.datacenter.narratives.stock.yahoo.realtime
 
-import java.lang.{Double => JDouble}
+import java.lang.{Double => JDouble, Long => JLong}
 import java.util.{Date, Properties}
 
 import com.ldaniels528.broadway.BroadwayNarrative
@@ -15,8 +15,8 @@ import com.ldaniels528.broadway.datasources.avro.AvroUtil._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.avro.YahooRealTimeQuoteRecord
+import com.shocktrade.datacenter.narratives.stock.StockQuoteSupport
 import org.apache.avro.generic.GenericRecord
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
@@ -26,8 +26,8 @@ import scala.concurrent.duration._
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 class YFRealTimeKafkaToDBNarrative(config: ServerConfig, id: String, props: Properties)
-  extends BroadwayNarrative(config, id, props) {
-  val log = LoggerFactory.getLogger(getClass)
+  extends BroadwayNarrative(config, id, props)
+  with StockQuoteSupport {
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
@@ -84,8 +84,8 @@ class YFRealTimeKafkaToDBNarrative(config: ServerConfig, id: String, props: Prop
         "assetClass" -> "Equity",
 
         // administrative fields
-        "yfDynRespTimeMsec" -> rec.asOpt[String]("ResponseTimeMsec"),
-        "yfDynLastUpdated" -> new Date(),
+        "yfRealTimeRespTimeMsec" -> rec.asOpt[JLong]("responseTimeMsec"),
+        "yfRealTimeLastUpdated" -> new Date(),
         "lastUpdated" -> new Date()
       )
 
@@ -99,21 +99,6 @@ class YFRealTimeKafkaToDBNarrative(config: ServerConfig, id: String, props: Prop
       counter += 1
     }
     true
-  }
-
-  private def computeSpread(high: Option[JDouble], low: Option[JDouble]) = {
-    for {
-      hi <- high
-      lo <- low
-    } yield if (lo != 0.0d) 100d * (hi - lo) / lo else 0.0d
-  }
-
-  private def computeChangePct(prevClose: Option[JDouble], lastTrade: Option[JDouble]): Option[JDouble] = {
-    for {
-      prev <- prevClose
-      last <- lastTrade
-      diff = last - prev
-    } yield (if (diff != 0) 100d * (diff / prev) else 0.0d): JDouble
   }
 
 }

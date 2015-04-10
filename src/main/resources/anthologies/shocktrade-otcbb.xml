@@ -4,7 +4,6 @@
     <!-- Schedules -->
 
     <schedule id="PeriodicSchedule" class="com.shocktrade.datacenter.schedules.PeriodicSchedule"/>
-    <schedule id="NonRunningSchedule" class="com.ldaniels528.broadway.core.triggers.schedules.NonRunningSchedule"/>
     <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.triggers.schedules.ScheduleOnce"/>
     <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
 
@@ -13,6 +12,10 @@
     <narrative id="OTCBBDailyUpdateNarrative" class="com.shocktrade.datacenter.narratives.stock.OTCBBDailyUpdateNarrative">
         <properties>
             <property key="kafka.topic">otcbb.transactions.avro</property>
+            <property key="kafka.topic.parallelism">5</property>
+            <property key="mongo.database">shocktrade</property>
+            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
+            <property key="mongo.collection">Stocks</property>
             <property key="zookeeper.connect">dev801:2181</property>
         </properties>
     </narrative>

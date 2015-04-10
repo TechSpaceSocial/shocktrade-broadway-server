@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock
+package com.shocktrade.datacenter.narratives.stock.eoddata
 
 import java.lang.{Double => JDouble, Long => JLong}
 import java.util.Properties
@@ -26,13 +26,14 @@ class EodDataImportNarrative(config: ServerConfig, id: String, props: Properties
 
   // extract the properties we need
   private val kafkaTopic = props.getOrDie("kafka.topic")
+  private val topicParallelism = props.getOrDie("kafka.topic.parallelism").toInt
   private val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a file reader actor to read lines from the incoming resource
-  lazy val fileReader = prepareActor(new FileReadingActor(config), parallelism = 30)
+  lazy val fileReader = prepareActor(new FileReadingActor(config), parallelism = 1)
 
   // create a Kafka publishing actor
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 10)
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = topicParallelism)
 
   onStart {
     case Some(resource: ReadableResource) =>

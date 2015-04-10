@@ -1,5 +1,6 @@
 package com.shocktrade.datacenter.narratives.stock.yahoo.keystats
 
+import java.lang.{Long => JLong}
 import java.util.{Date, Properties}
 
 import com.ldaniels528.broadway.BroadwayNarrative
@@ -15,7 +16,6 @@ import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.avro.KeyStatisticsRecord
 import org.apache.avro.generic.GenericRecord
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
@@ -26,7 +26,6 @@ import scala.concurrent.duration._
  */
 class YFKeyStatisticsKafkaToDBNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props) {
-  val log = LoggerFactory.getLogger(getClass)
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
@@ -69,6 +68,8 @@ class YFKeyStatisticsKafkaToDBNarrative(config: ServerConfig, id: String, props:
 
       // build the document
       val doc = rec.toMongoDB(fieldNames) ++ O(
+        // administrative fields
+        "yfKeyStatsRespTimeMsec" -> rec.asOpt[JLong]("responseTimeMsec"),
         "yfKeyStatsLastUpdated" -> new Date(),
         "lastUpdated" -> new Date()
       )

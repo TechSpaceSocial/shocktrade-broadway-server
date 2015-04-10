@@ -1,11 +1,16 @@
 <?xml version="1.0" ?>
 <anthology id="EodData" version="1.0">
+
     <!-- Narratives -->
 
     <narrative id="EodDataImportNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.EodDataImportNarrative">
+               class="com.shocktrade.datacenter.narratives.stock.eoddata.EodDataImportNarrative">
         <properties>
             <property key="kafka.topic">eoddata.tradinghistory.avro</property>
+            <property key="kafka.topic.parallelism">5</property>
+            <property key="mongo.database">shocktrade</property>
+            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
+            <property key="mongo.collection">Stocks</property>
             <property key="zookeeper.connect">dev801:2181</property>
         </properties>
     </narrative>
@@ -13,27 +18,6 @@
     <!-- Location Triggers -->
 
     <location id="tradingHistory" path="/Users/ldaniels/broadway/incoming/tradingHistory">
-        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-    </location>
-
-    <location id="tradingHistory1" path="/Users/ldaniels/broadway/incoming/tradingHistory1">
-        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-    </location>
-
-    <location id="tradingHistory2" path="/Users/ldaniels/broadway/incoming/tradingHistory2">
-        <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-        <feed name="OTCBB_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
-    </location>
-
-    <location id="tradingHistory3" path="/Users/ldaniels/broadway/incoming/tradingHistory3">
         <feed name="AMEX_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
         <feed name="NASDAQ_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>
         <feed name="NYSE_(.*)[.]txt" match="regex" narrative-ref="EodDataImportNarrative"/>

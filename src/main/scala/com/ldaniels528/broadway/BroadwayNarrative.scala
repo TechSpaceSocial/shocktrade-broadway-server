@@ -5,6 +5,7 @@ import java.util.Properties
 import akka.actor.Actor
 import com.ldaniels528.broadway.core.resources._
 import com.ldaniels528.broadway.server.ServerConfig
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext
 import scala.language.implicitConversions
@@ -18,6 +19,7 @@ case class BroadwayNarrative(config: ServerConfig, name: String, props: Properti
   protected implicit val executionContext = config.system.dispatcher
   private var setup: Option[Option[Resource] => Unit] = None
   private var tearDown: Option[() => Unit] = None
+  val log = LoggerFactory.getLogger(getClass)
 
   /**
    * Prepares a new actor for execution within the narrative

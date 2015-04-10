@@ -8,8 +8,11 @@ import com.ldaniels528.broadway.core.triggers.schedules.Scheduling
  * Represents a Narrative Trigger
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-case class Trigger(narrative: NarrativeDescriptor, schedule: Scheduling, resource: Option[Resource] = None) {
+case class Trigger(narrative: NarrativeDescriptor,
+                   schedule: Scheduling,
+                   enabled: Boolean,
+                   resource: Option[Resource] = None) {
 
-  def isReady(eventTime: Long): Boolean = schedule.isEligible(eventTime)
+  def isReady(eventTime: Long): Boolean = enabled && schedule.isEligible(eventTime)
 
 }

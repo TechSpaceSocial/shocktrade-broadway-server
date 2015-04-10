@@ -37,7 +37,6 @@ case class ServerConfig(props: java.util.Properties, httpInfo: Option[HttpInfo])
    * @return an [[akka.actor.ActorRef]]
    */
   def prepareActor[T <: Actor : ClassTag](actor: => T, parallelism: Int = 1) = {
-    //actorCache.getOrElseUpdate(actor.getClass, system.actorOf(Props(actor).withRouter(RoundRobinPool(nrOfInstances = parallelism))))
     system.actorOf(Props(actor).withRouter(RoundRobinPool(nrOfInstances = parallelism)))
   }
 

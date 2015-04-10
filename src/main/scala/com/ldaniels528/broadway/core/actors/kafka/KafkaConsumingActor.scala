@@ -11,13 +11,13 @@ import org.apache.avro.generic.GenericRecord
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
-import scala.util.Try
 
 /**
  * Kafka Message Consuming Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class KafkaConsumingActor(zkConnectionString: String) extends Actor with ActorLogging {
+class KafkaConsumingActor(zkConnect: String) extends Actor with ActorLogging {
+  private implicit lazy val zk = getZKProxy(zkConnect)
   private val registrations = TrieMap[(String, ActorRef), Future[Seq[Unit]]]()
 
   import context.dispatcher
@@ -27,15 +27,15 @@ class KafkaConsumingActor(zkConnectionString: String) extends Actor with ActorLo
       log.info(s"Registering topic '$topic' to $target...")
       registrations.putIfAbsent((topic, target), startConsumer(topic, avroSchema, target)) foreach {
         _ foreach { _ =>
-          log.info(s"$topic: Watch has ended for $target")
+          log.info(s"$topic: My watch has ended [$target]")
           registrations.remove((topic, target))
         }
       }
 
     case StopConsuming(topic, target) =>
       log.info(s"Canceling registration of topic '$topic' to $target...")
-      registrations.get((topic, target)) foreach { task =>
-        // TODO cancel the future
+      registrations.remove((topic, target)) foreach { task =>
+        // TODO cancel the future -- use system.scheduler instead
       }
 
     case message =>
@@ -51,29 +51,18 @@ class KafkaConsumingActor(zkConnectionString: String) extends Actor with ActorLo
   }
 
   private def startBinaryConsumer(topic: String, target: ActorRef): Future[Seq[Unit]] = {
-    implicit lazy val zk = ZKProxy(zkConnectionString)
-    val task = KafkaMicroConsumer.observe(topic, zk.getBrokerList) { md =>
+    KafkaMicroConsumer.observe(topic, zk.getBrokerList) { md =>
       target ! MessageReceived(topic, md.partition, md.offset, md.key, md.message)
     }
-    task.foreach { _ =>
-      log.info("My watch has ended. Closing Zookeeper client...")
-      Try(zk.close())
-    }
-    task
   }
 
   private def startAvroConsumer(topic: String, schema: Schema, target: ActorRef): Future[Seq[Unit]] = {
-    implicit lazy val zk = ZKProxy(zkConnectionString)
+    implicit lazy val zk = ZKProxy(zkConnect)
     val brokerList = KafkaMicroConsumer.getBrokerList
     val brokers = (0 to brokerList.size - 1) zip brokerList map { case (n, b) => Broker(b.host, b.port, n) }
-    val task = KafkaMicroConsumer.observe(topic, brokers) { md =>
+    KafkaMicroConsumer.observe(topic, brokers) { md =>
       target ! AvroMessageReceived(topic, md.partition, md.offset, md.key, AvroConversion.decodeRecord(schema, md.message))
     }
-    task.foreach { _ =>
-      log.info("My watch has ended. Closing Zookeeper client...")
-      Try(zk.close())
-    }
-    task
   }
 
 }
@@ -83,6 +72,15 @@ class KafkaConsumingActor(zkConnectionString: String) extends Actor with ActorLo
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
 object KafkaConsumingActor {
+  private[this] val zkProxies = TrieMap[String, ZKProxy]()
+
+  /**
+   * Ensures a single Zookeeper connection per server (connection string)
+   * @param zkConnect the given Zookeeper connection string (e.g. "localhost:2181")
+   * @return the Zookeeper proxy instance
+   * @see http://stackoverflow.com/questions/19722354/curator-framework-objects-for-zookeeper
+   */
+  def getZKProxy(zkConnect: String) = zkProxies.getOrElseUpdate(zkConnect, ZKProxy(zkConnect))
 
   /**
    * Registers the given recipient actor to receive messages from the given topic. The recipient

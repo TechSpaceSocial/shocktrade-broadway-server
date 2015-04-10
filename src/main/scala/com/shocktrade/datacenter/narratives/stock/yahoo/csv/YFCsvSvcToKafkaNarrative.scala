@@ -9,15 +9,17 @@ import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.PublishAvro
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
+import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports._
 import com.shocktrade.avro.CSVQuoteRecord
-import com.shocktrade.datacenter.narratives.stock.ShockTradeSymbolQuerying
+import com.shocktrade.datacenter.narratives.stock.StockQuoteSupport
 import com.shocktrade.services.YFStockQuoteService
 import com.shocktrade.services.YFStockQuoteService.YFStockQuote
 import org.joda.time.DateTime
-import org.slf4j.LoggerFactory
+
+import scala.concurrent.duration._
 
 /**
  * CSV Stock Quotes: Yahoo! Finance to Kafka Narrative
@@ -25,14 +27,14 @@ import org.slf4j.LoggerFactory
  */
 class YFCsvSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
-  with ShockTradeSymbolQuerying {
-  lazy val log = LoggerFactory.getLogger(getClass)
+  with StockQuoteSupport {
   val parameters = YFStockQuoteService.getParams(
     "symbol", "exchange", "lastTrade", "tradeDate", "tradeTime", "change", "changePct", "prevClose", "open", "close",
     "high", "low", "high52Week", "low52Week", "volume", "marketCap", "errorMessage", "ask", "askSize", "bid", "bidSize")
 
   // extract the properties we need
-  val kafkaTopic = props.getOrDie("kafka.kafkaTopic")
+  val kafkaTopic = props.getOrDie("kafka.topic")
+  val topicParallelism = props.getOrDie("kafka.topic.parallelism").toInt
   val mongoReplicas = props.getOrDie("mongo.replicas")
   val mongoDatabase = props.getOrDie("mongo.database")
   val mongoCollection = props.getOrDie("mongo.collection")
@@ -43,7 +45,10 @@ class YFCsvSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properti
 
   // create a Kafka publishing actor for stock quotes
   // NOTE: the Kafka parallelism is equal to the number of brokers
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 6)
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = topicParallelism)
+
+  // create a counter for statistics
+  val counter = new Counter(1.minute)((delta, rps) => log.info(f"Yahoo -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
 
   // create an actor to transform the MongoDB results to Avro-encoded records
   lazy val transformer = prepareActor(new TransformingActor({
@@ -51,6 +56,7 @@ class YFCsvSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properti
       val symbols = docs.flatMap(_.getAs[String]("symbol"))
       YFStockQuoteService.getQuotesSync(symbols, parameters) foreach { quote =>
         kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(quote))
+        counter += 1
       }
       true
     case _ => false
@@ -87,21 +93,6 @@ class YFCsvSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properti
       .setTradeDateTime(quote.tradeDateTime.map(n => n.getTime: JLong).orNull)
       .setVolume(quote.volume.map(n => n: JLong).orNull)
       .build()
-  }
-
-  private def computeSpread(high: Option[Double], low: Option[Double]): Option[Double] = {
-    for {
-      hi <- high
-      lo <- low
-    } yield if (lo != 0.0d) (hi - lo) / lo else 0.0d
-  }
-
-  private def computeChangePct(prevClose: Option[Double], lastTrade: Option[Double]) = {
-    for {
-      prev <- prevClose
-      last <- lastTrade
-      diff = last - prev
-    } yield if (diff != 0) 100d * (diff / prev) else 0.0d
   }
 
 }

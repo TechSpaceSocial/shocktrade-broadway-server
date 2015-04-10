@@ -1,9 +1,8 @@
 package com.shocktrade.datacenter.narratives.stock.yahoo.realtime
 
 import java.lang.{Double => JDouble, Long => JLong}
-import java.util.{Date, Properties}
+import java.util.Properties
 
-import akka.actor.ActorRef
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.TransformingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
@@ -13,13 +12,12 @@ import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
 import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
-import com.mongodb.casbah.Imports.{DBObject => O, _}
+import com.mongodb.casbah.Imports._
 import com.shocktrade.avro.YahooRealTimeQuoteRecord
-import com.shocktrade.datacenter.narratives.stock.ShockTradeSymbolQuerying
+import com.shocktrade.datacenter.narratives.stock.StockQuoteSupport
 import com.shocktrade.services.YFRealtimeStockQuoteService
 import com.shocktrade.services.YFRealtimeStockQuoteService.YFRealtimeQuote
 import org.joda.time.DateTime
-import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -30,11 +28,11 @@ import scala.util.{Failure, Success, Try}
  */
 class YFRealTimeSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
-  with ShockTradeSymbolQuerying {
-  lazy val log = LoggerFactory.getLogger(getClass)
+  with StockQuoteSupport {
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
+  val topicParallelism = props.getOrDie("kafka.topic.parallelism").toInt
   val mongoReplicas = props.getOrDie("mongo.replicas")
   val mongoDatabase = props.getOrDie("mongo.database")
   val mongoCollection = props.getOrDie("mongo.collection")
@@ -44,7 +42,7 @@ class YFRealTimeSvcToKafkaNarrative(config: ServerConfig, id: String, props: Pro
   lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 1)
 
   // create a Kafka publishing actor
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 10)
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = topicParallelism)
 
   // create a counter for statistics
   val counter = new Counter(1.minute)((delta, rps) => log.info(f"Yahoo -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
@@ -104,52 +102,6 @@ class YFRealTimeSvcToKafkaNarrative(config: ServerConfig, id: String, props: Pro
       .setTradeDateTime(quote.tradeDateTime.map(n => n.getTime: JLong).orNull)
       .setVolume(quote.volume.map(n => n: JLong).orNull)
       .build()
-  }
-
-  private def upsert(target: ActorRef, quote: YFRealtimeQuote) {
-    import quote._
-    Upsert(
-      target,
-      name = mongoCollection,
-      query = O("symbol" -> symbol),
-      doc = $set(
-        "name" -> quote.name,
-        "exchange" -> exchange,
-        "lastTrade" -> lastTrade,
-        "tradeDate" -> tradeDateTime,
-        "tradeDateTime" -> tradeDateTime,
-        "change" -> change,
-        "changePct" -> changePct,
-        "prevClose" -> prevClose,
-        "open" -> open,
-        "close" -> close,
-        "ask" -> ask,
-        "askSize" -> askSize,
-        "bid" -> bid,
-        "bidSize" -> bidSize,
-        "target1Yr" -> target1Yr,
-        "beta" -> beta,
-        "nextEarningsDate" -> nextEarningsDate,
-        "high" -> high,
-        "low" -> low,
-        "spread" -> spread,
-        "high52Week" -> high52Week,
-        "low52Week" -> low52Week,
-        "volume" -> volume,
-        "avgVol3m" -> avgVol3m,
-        "marketCap" -> marketCap,
-        "peRatio" -> peRatio,
-        "eps" -> eps,
-        "dividend" -> dividend,
-        "divYield" -> divYield,
-
-        // classification fields
-        "assetType" -> "Common Stock",
-        "assetClass" -> "Equity",
-
-        // administrative fields
-        "yfRealTimeRespTimeMsec" -> responseTimeMsec,
-        "yfRealTimeLastUpdated" -> new Date()))
   }
 
 }

@@ -3,8 +3,7 @@
 
     <!-- Schedules -->
 
-    <schedule id="NonRunningSchedule" class="com.ldaniels528.broadway.core.triggers.schedules.NonRunningSchedule"/>
-    <schedule id="ScheduleOnce" class="com.ldaniels528.broadway.core.triggers.schedules.ScheduleOnce"/>
+    <schedule id="PeriodicSchedule" class="com.shocktrade.datacenter.schedules.PeriodicSchedule"/>
     <schedule id="TradingSchedule" class="com.shocktrade.datacenter.schedules.USStockMarketSchedule"/>
 
     <!-- Narratives -->
@@ -13,6 +12,7 @@
                class="com.shocktrade.datacenter.narratives.stock.yahoo.csv.YFCsvSvcToKafkaNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.avro</property>
+            <property key="kafka.topic.parallelism">5</property>
             <property key="mongo.database">shocktrade</property>
             <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
             <property key="mongo.collection">Stocks</property>
@@ -24,6 +24,7 @@
                class="com.shocktrade.datacenter.narratives.stock.yahoo.csv.YFCsvKafkaToDBNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.avro</property>
+            <property key="kafka.topic.parallelism">5</property>
             <property key="mongo.database">shocktrade</property>
             <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
             <property key="mongo.collection">Stocks</property>
@@ -34,11 +35,13 @@
     <!-- Triggers -->
 
     <trigger
-            schedule-ref="NonRunningSchedule"
-            narrative-ref="YahooCsvSvcToKafkaNarrative"/>
+            schedule-ref="TradingSchedule"
+            narrative-ref="YahooCsvSvcToKafkaNarrative"
+            enabled="true" />
 
     <trigger
-            schedule-ref="NonRunningSchedule"
-            narrative-ref="YahooCsvKafkaToDBNarrative"/>
+            schedule-ref="PeriodicSchedule"
+            narrative-ref="YahooCsvKafkaToDBNarrative"
+            enabled="false" />
 
 </anthology>
