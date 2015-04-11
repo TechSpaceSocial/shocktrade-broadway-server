@@ -3,8 +3,8 @@
     "name": "OTCTransHistoryRecord",
     "namespace": "com.shocktrade.avro",
     "fields":[
-        { "name": "tranDate", "type":"long", "doc":"transaction type" },
-        { "name": "tranType", "type":"string", "doc":"transaction type" },
+        { "name": "tranDate", "type":["null", "long"], "doc":"transaction type" },
+        { "name": "tranType", "type":["null", "string"], "doc":"transaction type" },
         { "name": "newSymbol", "type":["null", "string"], "doc":"new stock symbol", "default":null },
         { "name": "oldSymbol", "type":["null", "string"], "doc":"former stock symbol", "default":null },
         { "name": "newName", "type":["null", "string"], "doc":"the new company name", "default":null },
