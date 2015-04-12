@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.yahoo.keystats
+package com.shocktrade.datacenter.narratives.securities.yahoo.keystats
 
 import java.lang.{Long => JLong}
 import java.util.{Date, Properties}

@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.yahoo.csv
+package com.shocktrade.datacenter.narratives.securities.yahoo.csv
 
 import java.lang.{Double => JDouble, Long => JLong}
 import java.util.Properties
@@ -14,7 +14,7 @@ import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports._
 import com.shocktrade.avro.CSVQuoteRecord
-import com.shocktrade.datacenter.narratives.stock.StockQuoteSupport
+import com.shocktrade.datacenter.narratives.securities.StockQuoteSupport
 import com.shocktrade.services.YFStockQuoteService
 import com.shocktrade.services.YFStockQuoteService.YFStockQuote
 import org.joda.time.DateTime

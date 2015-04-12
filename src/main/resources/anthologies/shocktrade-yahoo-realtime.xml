@@ -9,7 +9,7 @@
     <!-- Narratives -->
 
     <narrative id="YahooRealTimeSvcToKafkaNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.yahoo.realtime.YFRealTimeSvcToKafkaNarrative">
+               class="com.shocktrade.datacenter.narratives.securities.yahoo.realtime.YFRealTimeSvcToKafkaNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.realtime.avro</property>
             <property key="kafka.topic.parallelism">5</property>
@@ -21,7 +21,7 @@
     </narrative>
 
     <narrative id="YahooRealTimeKafkaToDBNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.yahoo.realtime.YFRealTimeKafkaToDBNarrative">
+               class="com.shocktrade.datacenter.narratives.securities.yahoo.realtime.YFRealTimeKafkaToDBNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.realtime.avro</property>
             <property key="kafka.topic.parallelism">5</property>

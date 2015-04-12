@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.otc
+package com.shocktrade.datacenter.narratives.securities.otc
 
 import java.lang.{Boolean => JBoolean, Long => JLong}
 import java.util.Properties
@@ -6,7 +6,7 @@ import java.util.Properties
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.TransformingActor
 import com.ldaniels528.broadway.core.actors.file.FileReadingActor
-import com.ldaniels528.broadway.core.actors.file.FileReadingActor._
+import com.ldaniels528.broadway.core.actors.file.FileReadingActor.{ClosingFile, CopyText, OpeningFile, TextLine}
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.PublishAvro
 import com.ldaniels528.broadway.core.resources.ReadableResource
@@ -21,11 +21,10 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 /**
- * OTC Bulletin Board Daily Update Narrative
+ * OTCE Finra MS Historical Data Monthly Resource
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-@deprecated
-class OTCBBDailyUpdateNarrative(config: ServerConfig, id: String, props: Properties)
+class MSHistoricalDataMonthlyNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props) {
   private val dfTs = DateTimeFormat.forPattern("MM/dd/yyyy hh:mm:ss")
   private val dfDt = DateTimeFormat.forPattern("MM/dd/yyyy")
@@ -42,7 +41,7 @@ class OTCBBDailyUpdateNarrative(config: ServerConfig, id: String, props: Propert
   lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = topicParallelism)
 
   // create a counter for statistics
-  val counter = new Counter(1.minute)((delta, rps) => log.info(f"OTCBB -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
+  val counter = new Counter(1.minute)((delta, rps) => log.info(f"OTC/ESI -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
 
   // create an actor to transform the MongoDB results to Avro-encoded records
   lazy val transformer = prepareActor(new TransformingActor({

@@ -9,7 +9,7 @@
     <!-- Narratives -->
 
     <narrative id="YahooCsvSvcToKafkaNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.yahoo.csv.YFCsvSvcToKafkaNarrative">
+               class="com.shocktrade.datacenter.narratives.securities.yahoo.csv.YFCsvSvcToKafkaNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.avro</property>
             <property key="kafka.topic.parallelism">5</property>
@@ -21,7 +21,7 @@
     </narrative>
 
     <narrative id="YahooCsvKafkaToDBNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.yahoo.csv.YFCsvKafkaToDBNarrative">
+               class="com.shocktrade.datacenter.narratives.securities.yahoo.csv.YFCsvKafkaToDBNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.avro</property>
             <property key="kafka.topic.parallelism">5</property>

@@ -4,7 +4,7 @@
     <!-- Narratives -->
 
     <narrative id="EodDataImportNarrative"
-               class="com.shocktrade.datacenter.narratives.stock.eoddata.EodDataImportNarrative">
+               class="com.shocktrade.datacenter.narratives.securities.eoddata.EodDataImportNarrative">
         <properties>
             <property key="kafka.topic">eoddata.tradinghistory.avro</property>
             <property key="kafka.topic.parallelism">5</property>

@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.otc
+package com.shocktrade.datacenter.narratives.securities.otc
 
 import java.lang.{Boolean => JBoolean, Long => JLong}
 import java.util.Properties
@@ -21,10 +21,10 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 /**
- * OTCE Finra MS Historical Data Monthly Resource
+ * OTCE Finra Equity Short Interest (ESI) Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class MSHistoricalDataMonthlyNarrative(config: ServerConfig, id: String, props: Properties)
+class EquityShortInterestNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props) {
   private val dfTs = DateTimeFormat.forPattern("MM/dd/yyyy hh:mm:ss")
   private val dfDt = DateTimeFormat.forPattern("MM/dd/yyyy")

@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.yahoo.keystats
+package com.shocktrade.datacenter.narratives.securities.yahoo.keystats
 
 import java.lang.{Double => JDouble, Long => JLong}
 import java.util.Properties
@@ -14,7 +14,7 @@ import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports._
 import com.shocktrade.avro.KeyStatisticsRecord
-import com.shocktrade.datacenter.narratives.stock.StockQuoteSupport
+import com.shocktrade.datacenter.narratives.securities.StockQuoteSupport
 import com.shocktrade.services.YFKeyStatisticsService
 import com.shocktrade.services.YFKeyStatisticsService.YFKeyStatistics
 import org.joda.time.DateTime

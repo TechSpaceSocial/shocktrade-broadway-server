@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.otc
+package com.shocktrade.datacenter.narratives.securities.otc
 
 import java.net.{URL, URLEncoder}
 import java.text.SimpleDateFormat

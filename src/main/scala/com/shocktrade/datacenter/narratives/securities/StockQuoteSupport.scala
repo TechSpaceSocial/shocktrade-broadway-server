@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock
+package com.shocktrade.datacenter.narratives.securities
 
 import java.lang.{Double => JDouble}
 

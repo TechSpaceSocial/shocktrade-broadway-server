@@ -9,7 +9,7 @@
 
     <!-- Narratives -->
 
-    <narrative id="EquityShortInterestNarrative" class="com.shocktrade.datacenter.narratives.stock.otc.EquityShortInterestNarrative">
+    <narrative id="EquityShortInterestNarrative" class="com.shocktrade.datacenter.narratives.securities.otc.EquityShortInterestNarrative">
         <properties>
             <property key="kafka.topic">otc.equityshortinterest.avro</property>
             <property key="kafka.topic.parallelism">5</property>
@@ -20,7 +20,7 @@
         </properties>
     </narrative>
 
-    <narrative id="MSHistoricalDataMonthlyNarrative" class="com.shocktrade.datacenter.narratives.stock.otc.MSHistoricalDataMonthlyNarrative">
+    <narrative id="MSHistoricalDataMonthlyNarrative" class="com.shocktrade.datacenter.narratives.securities.otc.MSHistoricalDataMonthlyNarrative">
         <properties>
             <property key="kafka.topic">otc.historydatamonthly.avro</property>
             <property key="kafka.topic.parallelism">5</property>
@@ -31,7 +31,7 @@
         </properties>
     </narrative>
 
-    <narrative id="RegSHONarrative" class="com.shocktrade.datacenter.narratives.stock.otc.RegSHONarrative">
+    <narrative id="RegSHONarrative" class="com.shocktrade.datacenter.narratives.securities.otc.RegSHONarrative">
         <properties>
             <property key="kafka.topic">otc.regsho.avro</property>
             <property key="kafka.topic.parallelism">5</property>
@@ -44,9 +44,9 @@
 
     <!-- Resources -->
 
-    <resource id="EquityShortInterestResource" class="com.shocktrade.datacenter.narratives.stock.otc.EquityShortInterestResource" />
-    <resource id="MSHistoricalDataMonthlyResource" class="com.shocktrade.datacenter.narratives.stock.otc.MSHistoricalDataMonthlyResource" />
-    <resource id="RegSHOResource" class="com.shocktrade.datacenter.narratives.stock.otc.RegSHOResource" />
+    <resource id="EquityShortInterestResource" class="com.shocktrade.datacenter.narratives.securities.otc.EquityShortInterestResource" />
+    <resource id="MSHistoricalDataMonthlyResource" class="com.shocktrade.datacenter.narratives.securities.otc.MSHistoricalDataMonthlyResource" />
+    <resource id="RegSHOResource" class="com.shocktrade.datacenter.narratives.securities.otc.RegSHOResource" />
 
     <!-- Triggers -->
 

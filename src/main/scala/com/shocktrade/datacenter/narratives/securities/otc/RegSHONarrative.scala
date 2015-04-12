@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.otc
+package com.shocktrade.datacenter.narratives.securities.otc
 
 import java.lang.{Boolean => JBoolean, Long => JLong}
 import java.util.Properties

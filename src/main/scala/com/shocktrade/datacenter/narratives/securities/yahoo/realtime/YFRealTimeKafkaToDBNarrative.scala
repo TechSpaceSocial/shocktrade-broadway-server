@@ -1,4 +1,4 @@
-package com.shocktrade.datacenter.narratives.stock.yahoo.csv
+package com.shocktrade.datacenter.narratives.securities.yahoo.realtime
 
 import java.lang.{Double => JDouble, Long => JLong}
 import java.util.{Date, Properties}
@@ -14,18 +14,18 @@ import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.datasources.avro.AvroUtil._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.mongodb.casbah.Imports.{DBObject => O, _}
-import com.shocktrade.avro.CSVQuoteRecord
-import com.shocktrade.datacenter.narratives.stock.StockQuoteSupport
+import com.shocktrade.avro.YahooRealTimeQuoteRecord
+import com.shocktrade.datacenter.narratives.securities.StockQuoteSupport
 import org.apache.avro.generic.GenericRecord
 
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 
 /**
- * CSV Stock Quotes: Kafka/Avro to MongoDB Narrative
+ * Yahoo Real-time Stock Quotes: Kafka/Avro to MongoDB Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Properties)
+class YFRealTimeKafkaToDBNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
   with StockQuoteSupport {
 
@@ -36,19 +36,19 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
   val mongoCollection = props.getOrDie("mongo.collection")
   val zkConnect = props.getOrDie("zookeeper.connect")
 
+  // create a counter for statistics
+  val counter = new Counter(1.minute)((delta, rps) => log.info(f"$kafkaTopic -> $mongoCollection: $delta records ($rps%.1f records/second)"))
+
   // create a MongoDB actor for persisting stock quotes
-  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 5)
+  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 10)
 
   // create the Kafka message consumer
   lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), parallelism = 1)
 
-  // create a counter for statistics
-  val counter = new Counter(1.minute)((delta, rps) => log.info(f"$kafkaTopic -> $mongoCollection: $delta records ($rps%.1f records/second)"))
-
   // create an actor to persist the Avro-encoded stock records to MongoDB
   lazy val transformer = prepareActor(new TransformingActor({
-    case AvroMessageReceived(topic, partition, offset, key, message) => persistQuote(message)
-    case MongoWriteResult(coll, doc, result, refObj) => updateNewSymbol(refObj)
+    case AvroMessageReceived(topic, partition, offset, key, record) => persistQuote(record)
+    case _: MongoWriteResult => true
     case message =>
       log.warn(s"Received unexpected message $message (${Option(message).map(_.getClass.getName).orNull})")
       false
@@ -56,7 +56,7 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
 
   // finally, start the process by initiating the consumption of Avro stock records
   onStart { resource =>
-    kafkaConsumer ! StartConsuming(kafkaTopic, transformer, Some(CSVQuoteRecord.getClassSchema))
+    kafkaConsumer ! StartConsuming(kafkaTopic, transformer, Some(YahooRealTimeQuoteRecord.getClassSchema))
   }
 
   // stop consuming messages when the narrative is deactivated
@@ -84,8 +84,8 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
         "assetClass" -> "Equity",
 
         // administrative fields
-        "yfDynRespTimeMsec" -> rec.asOpt[JLong]("responseTimeMsec"),
-        "yfDynLastUpdated" -> new Date(),
+        "yfRealTimeRespTimeMsec" -> rec.asOpt[JLong]("responseTimeMsec"),
+        "yfRealTimeLastUpdated" -> new Date(),
         "lastUpdated" -> new Date()
       )
 
@@ -101,17 +101,4 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
     true
   }
 
-  private def updateNewSymbol(refObj: Option[Any]): Boolean = {
-    refObj foreach { case record: CSVQuoteRecord =>
-      val newSymbol = Option(record.getNewSymbol)
-      val oldSymbol = Option(record.getSymbol) // record.oldSymbol
-      newSymbol.foreach { symbol =>
-        mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> oldSymbol), doc = O("symbol" -> oldSymbol))
-        mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
-      }
-    }
-    true
-  }
-
 }
-
