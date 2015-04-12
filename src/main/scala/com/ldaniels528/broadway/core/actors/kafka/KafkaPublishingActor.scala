@@ -1,7 +1,7 @@
 package com.ldaniels528.broadway.core.actors.kafka
 
-import akka.actor.{Actor, ActorLogging}
 import com.datastax.driver.core.utils.UUIDs
+import com.ldaniels528.broadway.core.actors.BroadwayActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.{Publish, PublishAvro}
 import com.ldaniels528.trifecta.io.ByteBufferUtils
 import com.ldaniels528.trifecta.io.avro.AvroConversion
@@ -14,7 +14,7 @@ import scala.util.{Failure, Success}
  * Kafka-Avro Publishing Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class KafkaPublishingActor(zkConnectionString: String) extends Actor with ActorLogging {
+class KafkaPublishingActor(zkConnectionString: String) extends BroadwayActor {
   private lazy val publisher = KafkaPublisher(KafkaHelper.getBrokerList(zkConnectionString))
 
   override def preStart() = publisher.open()

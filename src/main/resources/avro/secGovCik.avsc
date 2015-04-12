@@ -1,0 +1,12 @@
+{
+    "type": "record",
+    "name": "CikRecord",
+    "namespace": "gov.sec.avro",
+    "fields":[
+        { "name": "symbol", "type":"string", "doc":"security symbol" },
+        { "name": "name", "type":["null", "string"], "doc":"security company name", "default":null },
+        { "name": "cikNumber", "type":["null", "string"], "doc":"the issued CIK", "default":null },
+        { "name": "cikName", "type":["null", "string"], "doc":"the CIK company name", "default":null }
+    ],
+    "doc": "A schema for sec.gov CIK record"
+}

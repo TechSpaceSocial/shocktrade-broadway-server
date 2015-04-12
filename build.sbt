@@ -1,7 +1,7 @@
+import sbt.Keys._
 import sbt._
-import Keys._
+import sbtassembly.Plugin.AssemblyKeys._
 import sbtassembly.Plugin._
-import AssemblyKeys._
 
 name := "shocktrade-server"
 
@@ -30,13 +30,12 @@ test in assembly := {}
 
 jarName in assembly := "shocktrade-server_" + version.value + ".bin.jar"
 
-mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) =>
-  {
-    case PathList("stax", "stax-api", xs @ _*) => MergeStrategy.first
-    case PathList("log4j-over-slf4j", xs @ _*) => MergeStrategy.discard
-    case PathList("META-INF", "MANIFEST.MF", xs @ _*) => MergeStrategy.discard
-    case x => MergeStrategy.first
-  }
+mergeStrategy in assembly <<= (mergeStrategy in assembly) { (old) => {
+  case PathList("stax", "stax-api", xs@_*) => MergeStrategy.first
+  case PathList("log4j-over-slf4j", xs@_*) => MergeStrategy.discard
+  case PathList("META-INF", "MANIFEST.MF", xs@_*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}
 }
 
 Seq(sbtavro.SbtAvro.avroSettings: _*)
@@ -51,8 +50,8 @@ Seq(sbtavro.SbtAvro.avroSettings: _*)
 
 // Shocktrade Dependencies
 libraryDependencies ++= Seq(
-//  "com.ldaniels528" %% "broadway" % "0.7",
-  "com.ldaniels528" %% "shocktrade-services" % "0.2.9",
+  //  "com.ldaniels528" %% "broadway" % "0.8.0",
+  "com.ldaniels528" %% "shocktrade-services" % "0.3.0",
   "com.ldaniels528" %% "tabular" % "0.1.0",
   "com.ldaniels528" %% "trifecta" % "0.19.0"
     exclude("org.mongodb", "casbah-commons")

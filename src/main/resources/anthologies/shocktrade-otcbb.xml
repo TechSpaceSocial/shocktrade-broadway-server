@@ -54,7 +54,7 @@
             schedule-ref="PeriodicSchedule"
             narrative-ref="EquityShortInterestNarrative"
             resource-ref="EquityShortInterestResource"
-            enabled="true" />
+            enabled="false" />
 
     <trigger
             schedule-ref="PeriodicSchedule"

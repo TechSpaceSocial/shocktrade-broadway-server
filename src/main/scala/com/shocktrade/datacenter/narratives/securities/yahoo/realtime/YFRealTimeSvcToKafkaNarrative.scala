@@ -63,7 +63,7 @@ class YFRealTimeSvcToKafkaNarrative(config: ServerConfig, id: String, props: Pro
     case _ => false
   }))
 
-  onStart { resource =>
+  onStart { _ =>
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,
     // and send it to Kafka
     mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5), fetchSize = 5)

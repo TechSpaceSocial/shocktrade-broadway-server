@@ -11,7 +11,7 @@ import org.joda.time.DateTime
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  * @see http://otce.finra.org/RegSHO/Archives
  */
-class RegSHOResource() extends ReadableResource {
+class RegSHOResource(id: String) extends ReadableResource {
   private var lastDate = formatDate(new DateTime().minusDays(1))
 
   /*

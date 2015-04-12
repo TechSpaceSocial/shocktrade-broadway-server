@@ -11,7 +11,7 @@ import org.joda.time.DateTime
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  * @see http://otce.finra.org/MSHistoricalDataMonthly/Archives
  */
-class MSHistoricalDataMonthlyResource() extends ReadableResource {
+class MSHistoricalDataMonthlyResource(id: String) extends ReadableResource {
   private var lastDate = formatDate(new DateTime().minusDays(1))
 
   /*
