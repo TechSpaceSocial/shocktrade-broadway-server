@@ -33,7 +33,7 @@ class EodDataImportNarrative(config: ServerConfig, id: String, props: Properties
   private val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a file reader actor to read lines from the incoming resource
-  lazy val fileReader = prepareActor(new FileReadingActor(config), parallelism = 1)
+  lazy val fileReader = prepareActor(new FileReadingActor(config), parallelism = 1, id = "fileReader")
 
   // create a Kafka publishing actor
   lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), id = "kafkaPublisher", parallelism = topicParallelism)
@@ -51,11 +51,11 @@ class EodDataImportNarrative(config: ServerConfig, id: String, props: Properties
       true
     case x@(OpeningFile | ClosingFile) => true
     case _ => false
-  }))
+  }), parallelism = 5)
 
   onStart {
     case Some(resource: ReadableResource) =>
-      fileReader ! CopyText(resource, transformer, handler = Delimited("[\t]"))
+      fileReader ! CopyText(resource, transformer, handler = Delimited("[,]"))
     case _ =>
   }
 

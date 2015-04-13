@@ -20,6 +20,7 @@ import com.shocktrade.services.YFKeyStatisticsService.YFKeyStatistics
 import org.joda.time.DateTime
 
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 /**
  * Yahoo! Finance Key Statistics Narrative
@@ -50,8 +51,13 @@ class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props
   lazy val transformer = prepareActor(new TransformingActor({
     case MongoFindResults(coll, docs) =>
       docs.flatMap(_.getAs[String]("symbol")) foreach { symbol =>
-        kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFKeyStatisticsService.getKeyStatisticsSync(symbol)))
-        counter += 1
+        Try {
+          kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFKeyStatisticsService.getKeyStatisticsSync(symbol)))
+        } match {
+          case Success(_) => counter += 1
+          case Failure(e) =>
+            log.error(s"Failed to publish key statistics for $symbol: ${e.getMessage}")
+        }
       }
       true
     case _ => false
@@ -61,7 +67,7 @@ class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,
     // and send it to Kafka
     val lastModified = new DateTime().minusHours(24)
-    log.info(s"Retrieving symbols from collection $mongoCollection (modified since $lastModified)...")
+    log.info(s"Retrieving key statistics symbols from collection $mongoCollection (modified since $lastModified)...")
     mongoReader ! Find(
       recipient = transformer,
       name = mongoCollection,

@@ -1,0 +1,31 @@
+<?xml version="1.0" ?>
+<anthology id="Central Index Key" version="1.0">
+
+    <!-- Schedules -->
+
+    <schedule id="PeriodicSchedule" class="com.shocktrade.datacenter.schedules.PeriodicSchedule"/>
+    <schedule id="DailySchedule" class="com.ldaniels528.broadway.core.triggers.schedules.DailySchedule"/>
+
+    <!-- Narratives -->
+
+    <narrative id="CIKUpdateNarrative"
+               class="com.shocktrade.datacenter.narratives.securities.gov.cik.CIKUpdateNarrative">
+        <properties>
+            <property key="kafka.topic">gov.sec.cik.avro</property>
+            <property key="kafka.topic.parallelism">5</property>
+            <property key="mongo.database">shocktrade</property>
+            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
+            <property key="mongo.collection">Stocks</property>
+            <property key="zookeeper.connect">dev801:2181</property>
+        </properties>
+    </narrative>
+
+
+    <!-- Triggers -->
+
+    <trigger
+            schedule-ref="DailySchedule"
+            narrative-ref="CIKUpdateNarrative"
+            enabled="true" />
+
+</anthology>

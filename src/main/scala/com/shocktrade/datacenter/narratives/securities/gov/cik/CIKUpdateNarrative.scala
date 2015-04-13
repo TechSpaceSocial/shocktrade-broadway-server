@@ -42,11 +42,12 @@ class CIKUpdateNarrative(config: ServerConfig, id: String, props: Properties)
   lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), id = "kafkaPublisher", parallelism = topicParallelism)
 
   // create a counter for statistics
-  val counter = new Counter(1.minute)((delta, rps) => log.info(f"EODDATA -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
+  val counter = new Counter(1.minute)((delta, rps) => log.info(f"CIK -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
 
   // create an actor to transform the MongoDB results to Avro-encoded records
   lazy val transformer = prepareActor(new TransformingActor({
     case MongoFindResults(coll, docs) =>
+      log.info(s"Processing a batch of CIK ${docs.size} record(s)....")
       // extract the company name and symbol from the MongoDB record
       val results = for {
         doc <- docs
@@ -77,7 +78,7 @@ class CIKUpdateNarrative(config: ServerConfig, id: String, props: Properties)
       recipient = transformer,
       name = mongoCollection,
       fields = O("symbol" -> 1, "name" -> 1),
-      query = O("active" -> true, "cikNumber" -> null),
+      query = O("active" -> true) ++ ("cikNumber" $exists false),
       maxFetchSize = 50
     )
   }

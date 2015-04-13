@@ -20,6 +20,7 @@ import com.shocktrade.services.YFStockQuoteService.YFStockQuote
 import org.joda.time.DateTime
 
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 /**
  * CSV Stock Quotes: Yahoo! Finance to Kafka Narrative
@@ -55,8 +56,13 @@ class YFCsvSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properti
     case MongoFindResults(coll, docs) =>
       val symbols = docs.flatMap(_.getAs[String]("symbol"))
       YFStockQuoteService.getQuotesSync(symbols, parameters) foreach { quote =>
-        kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(quote))
-        counter += 1
+        Try {
+          kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(quote))
+        } match {
+          case Success(_) => counter += 1
+          case Failure(e) =>
+            log.error(s"Failed to publish CSV quote for ${quote.symbol}: ${e.getMessage}")
+        }
       }
       true
     case _ => false
@@ -67,7 +73,7 @@ class YFCsvSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properti
     // 2. Send the symbols to the transforming actor, which will load the quote, transform it to Avro
     // 3. Write each Avro record to Kafka
     val lastModified = new DateTime().minusMinutes(5)
-    log.info(s"Retrieving symbols from collection $mongoCollection (modified since $lastModified)...")
+    log.info(s"Retrieving CSV quote symbols from collection $mongoCollection (modified since $lastModified)...")
     mongoReader ! Find(
       recipient = transformer,
       name = mongoCollection,

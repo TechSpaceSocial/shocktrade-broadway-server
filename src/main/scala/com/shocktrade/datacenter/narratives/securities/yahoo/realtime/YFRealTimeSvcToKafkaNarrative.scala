@@ -67,7 +67,7 @@ class YFRealTimeSvcToKafkaNarrative(config: ServerConfig, id: String, props: Pro
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,
     // and send it to Kafka
     val lastModified = new DateTime().minusMinutes(5)
-    log.info(s"Retrieving symbols from collection $mongoCollection (modified since $lastModified)...")
+    log.info(s"Retrieving Real-time quote symbols from collection $mongoCollection (modified since $lastModified)...")
     mongoReader ! Find(
       recipient = transformer,
       name = mongoCollection,

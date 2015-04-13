@@ -6,7 +6,7 @@
     <narrative id="EodDataImportNarrative"
                class="com.shocktrade.datacenter.narratives.securities.eoddata.EodDataImportNarrative">
         <properties>
-            <property key="kafka.topic">eoddata.tradinghistory.avro</property>
+            <property key="kafka.topic">eoddata.tradinghistory1.avro</property>
             <property key="kafka.topic.parallelism">5</property>
             <property key="mongo.database">shocktrade</property>
             <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>

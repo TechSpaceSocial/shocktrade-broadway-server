@@ -10,7 +10,7 @@ case class PeriodicSchedule(id: String) extends Scheduling {
   private var lastCheckMillis: Long = 0
 
   override def isEligible(eventTime: Long) = {
-    val isReady = eventTime - lastCheckMillis >= 60000L
+    val isReady = eventTime - lastCheckMillis >= 300000L
     lastCheckMillis = System.currentTimeMillis()
     isReady
   }

@@ -5,13 +5,14 @@ import com.ldaniels528.broadway.core.actors.BroadwayActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor._
 import com.ldaniels528.broadway.core.actors.kafka.KafkaHelper._
 import com.ldaniels528.trifecta.io.avro.AvroConversion
-import com.ldaniels528.trifecta.io.kafka.{Broker, KafkaMicroConsumer}
+import com.ldaniels528.trifecta.io.kafka.{KafkaMacroConsumer, KafkaMicroConsumer}
 import com.ldaniels528.trifecta.io.zookeeper.ZKProxy
+import com.ldaniels528.trifecta.util.ResourceHelper._
+import kafka.common.TopicAndPartition
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.Future
 
 /**
  * Kafka Message Consuming Actor
@@ -19,51 +20,58 @@ import scala.concurrent.Future
  */
 class KafkaConsumingActor(zkConnect: String) extends BroadwayActor {
   private implicit lazy val zk = getZKProxy(zkConnect)
-  private val registrations = TrieMap[(String, ActorRef), Future[Seq[Unit]]]()
+  private val consumerGroups = TrieMap[(String, String, ActorRef), KafkaMacroConsumer]()
 
   import context.dispatcher
 
   override def receive = {
-    case StartConsuming(topic, target, avroSchema) =>
-      log.info(s"Registering topic '$topic' to $target...")
-      registrations.putIfAbsent((topic, target), startConsumer(topic, avroSchema, target)) foreach {
-        _ foreach { _ =>
-          log.info(s"$topic: My watch has ended [$target]")
-          registrations.remove((topic, target))
-        }
-      }
+    case StartConsuming(topic, groupId, target, avroSchema) =>
+      log.info(s"Registering topic '$topic' and group ID '$groupId' to $target...")
+      consumerGroups.putIfAbsent((topic, groupId, target), startConsumer(topic, groupId, avroSchema, target))
 
-    case StopConsuming(topic, target) =>
-      log.info(s"Canceling registration of topic '$topic' to $target...")
-      registrations.remove((topic, target)) foreach { task =>
-        // TODO cancel the future -- use system.scheduler instead
-      }
+    case StopConsuming(topic, groupId, target) =>
+      log.info(s"Canceling registration of topic '$topic' and group ID '$groupId' to $target...")
+      consumerGroups.remove((topic, groupId, target)) foreach (_.close())
 
     case message =>
       log.error(s"Unhandled message $message")
       unhandled(message)
   }
 
-  private def startConsumer(topic: String, avroSchema: Option[Schema], target: ActorRef): Future[Seq[Unit]] = {
+  private def startConsumer(topic: String, groupId: String, avroSchema: Option[Schema], target: ActorRef): KafkaMacroConsumer = {
+    val partitions = KafkaMicroConsumer.getTopicPartitions(topic)
+    val parallelism = 1 + partitions.size
+
+    // ensure the group ID exists for each partition
+    partitions.foreach { partition =>
+      new KafkaMicroConsumer(new TopicAndPartition(topic, partition), zk.getBrokerList) use { consumer =>
+        if (consumer.fetchOffsets(groupId).isEmpty) {
+          consumer.getFirstOffset.foreach(consumer.commitOffsets(groupId, _, "Broadway setting initial position"))
+        }
+      }
+    }
+
+    // start the consumer
     avroSchema match {
-      case Some(schema) => startAvroConsumer(topic, schema, target)
-      case None => startBinaryConsumer(topic, target)
+      case Some(schema) => startAvroConsumer(topic, groupId, parallelism, schema, target)
+      case None => startBinaryConsumer(topic, groupId, parallelism, target)
     }
   }
 
-  private def startBinaryConsumer(topic: String, target: ActorRef): Future[Seq[Unit]] = {
-    KafkaMicroConsumer.observe(topic, zk.getBrokerList) { md =>
-      target ! MessageReceived(topic, md.partition, md.offset, md.key, md.message)
-    }
-  }
-
-  private def startAvroConsumer(topic: String, schema: Schema, target: ActorRef): Future[Seq[Unit]] = {
-    implicit lazy val zk = ZKProxy(zkConnect)
-    val brokerList = KafkaMicroConsumer.getBrokerList
-    val brokers = (0 to brokerList.size - 1) zip brokerList map { case (n, b) => Broker(b.host, b.port, n) }
-    KafkaMicroConsumer.observe(topic, brokers) { md =>
+  private def startAvroConsumer(topic: String, groupId: String, parallelism: Int, schema: Schema, target: ActorRef): KafkaMacroConsumer = {
+    val consumer = KafkaMacroConsumer(zkConnect, groupId)
+    consumer.observe(topic, parallelism) { md =>
       target ! AvroMessageReceived(topic, md.partition, md.offset, md.key, AvroConversion.decodeRecord(schema, md.message))
     }
+    consumer
+  }
+
+  private def startBinaryConsumer(topic: String, groupId: String, parallelism: Int, target: ActorRef): KafkaMacroConsumer = {
+    val consumer = KafkaMacroConsumer(zkConnect, groupId)
+    consumer.observe(topic, parallelism) { md =>
+      target ! MessageReceived(topic, md.partition, md.offset, md.key, md.message)
+    }
+    consumer
   }
 
 }
@@ -89,14 +97,14 @@ object KafkaConsumingActor {
    * @param topic the given Kafka topic (e.g. "quotes.yahoo.csv")
    * @param target the given recipient actor; the actor that is to receive the messages
    */
-  case class StartConsuming(topic: String, target: ActorRef, avroSchema: Option[Schema] = None)
+  case class StartConsuming(topic: String, groupId: String, target: ActorRef, avroSchema: Option[Schema] = None)
 
   /**
    * Cancels a registration; causing no future messages to be sent to the recipient.
    * @param topic the given Kafka topic (e.g. "quotes.yahoo.csv")
    * @param target the given recipient actor; the actor that is to receive the messages
    */
-  case class StopConsuming(topic: String, target: ActorRef)
+  case class StopConsuming(topic: String, groupId: String, target: ActorRef)
 
   /**
    * This message is sent to all registered actors when a message is available for

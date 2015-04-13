@@ -12,6 +12,7 @@
                class="com.shocktrade.datacenter.narratives.securities.yahoo.csv.YFCsvSvcToKafkaNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.avro</property>
+            <property key="kafka.group">tracker</property>
             <property key="kafka.topic.parallelism">5</property>
             <property key="mongo.database">shocktrade</property>
             <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
@@ -24,6 +25,7 @@
                class="com.shocktrade.datacenter.narratives.securities.yahoo.csv.YFCsvKafkaToDBNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.avro</property>
+            <property key="kafka.group">tracker</property>
             <property key="kafka.topic.parallelism">5</property>
             <property key="mongo.database">shocktrade</property>
             <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
@@ -37,7 +39,7 @@
     <trigger
             schedule-ref="TradingSchedule"
             narrative-ref="YahooCsvSvcToKafkaNarrative"
-            enabled="true" />
+            enabled="false" />
 
     <trigger
             schedule-ref="PeriodicSchedule"

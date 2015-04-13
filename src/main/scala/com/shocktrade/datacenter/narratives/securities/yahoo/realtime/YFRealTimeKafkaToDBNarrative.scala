@@ -6,7 +6,7 @@ import java.util.{Date, Properties}
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.TransformingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor
-import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor.{AvroMessageReceived, StartConsuming, StopConsuming}
+import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor._
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor.{Upsert, _}
 import com.ldaniels528.broadway.core.util.Counter
@@ -31,6 +31,8 @@ class YFRealTimeKafkaToDBNarrative(config: ServerConfig, id: String, props: Prop
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
+  val kafkaGroupId = props.getOrDie("kafka.group")
+  val topicParallelism = props.getOrDie("kafka.topic.parallelism").toInt
   val mongoReplicas = props.getOrDie("mongo.replicas")
   val mongoDatabase = props.getOrDie("mongo.database")
   val mongoCollection = props.getOrDie("mongo.collection")
@@ -43,7 +45,7 @@ class YFRealTimeKafkaToDBNarrative(config: ServerConfig, id: String, props: Prop
   lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoWriter", parallelism = 10)
 
   // create the Kafka message consumer
-  lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), id = "kafkaConsumer", parallelism = 1)
+  lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), id = "kafkaConsumer", parallelism = topicParallelism)
 
   // create an actor to persist the Avro-encoded stock records to MongoDB
   lazy val transformer = prepareActor(new TransformingActor({
@@ -52,32 +54,35 @@ class YFRealTimeKafkaToDBNarrative(config: ServerConfig, id: String, props: Prop
     case message =>
       log.warn(s"Received unexpected message $message (${Option(message).map(_.getClass.getName).orNull})")
       false
-  }))
+  }), parallelism = 20)
 
   // finally, start the process by initiating the consumption of Avro stock records
   onStart { resource =>
-    kafkaConsumer ! StartConsuming(kafkaTopic, transformer, Some(YahooRealTimeQuoteRecord.getClassSchema))
+    kafkaConsumer ! StartConsuming(kafkaTopic, kafkaGroupId, transformer, Some(YahooRealTimeQuoteRecord.getClassSchema))
   }
 
   // stop consuming messages when the narrative is deactivated
   onStop { () =>
-    kafkaConsumer ! StopConsuming(kafkaTopic, transformer)
+    kafkaConsumer ! StopConsuming(kafkaTopic, kafkaGroupId, transformer)
   }
 
   private def persistQuote(rec: GenericRecord): Boolean = {
     rec.asOpt[String]("symbol") foreach { symbol =>
-      val fieldNames = rec.getSchema.getFields.map(_.name).toSeq
+      val fieldNames = rec.getSchema.getFields.map(_.name).filterNot(f => f == "tradeDate" || f == "tradeDateTime").toSeq
       val changePct = rec.asOpt[JDouble]("changePct")
       val prevClose = rec.asOpt[JDouble]("prevClose")
       val lastTrade = rec.asOpt[JDouble]("lastTrade")
       val high = rec.asOpt[JDouble]("high")
       val low = rec.asOpt[JDouble]("low")
+      val tradeDateTime = rec.asOpt[JLong]("tradeDateTime") map(new Date(_))
 
       // build the document
       val doc = rec.toMongoDB(fieldNames) ++ O(
         // calculated fields
         "changePct" -> (changePct getOrElse computeChangePct(prevClose, lastTrade)),
         "spread" -> computeSpread(high, low),
+        "tradeDateTime" -> tradeDateTime,
+        "tradeDate" -> tradeDateTime,
 
         // classification fields
         "assetType" -> "Common Stock",

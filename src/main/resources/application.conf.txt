@@ -1,0 +1,22 @@
+akka {
+
+  bounded-mailbox {
+    mailbox-type = "akka.dispatch.BoundedMailbox"
+    mailbox-capacity = 10000
+    mailbox-push-timeout-time = 10s
+  }
+
+  actor {
+    default-dispatcher {
+      # Throughput for default Dispatcher, set to 1 for as fair as possible
+      throughput = 1
+    }
+
+    mailbox {
+      requirements {
+        "akka.dispatch.BoundedMessageQueueSemantics" = bounded-mailbox
+      }
+    }
+  }
+
+}

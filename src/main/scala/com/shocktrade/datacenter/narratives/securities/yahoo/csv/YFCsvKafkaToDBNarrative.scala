@@ -6,7 +6,7 @@ import java.util.{Date, Properties}
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.TransformingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor
-import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor.{AvroMessageReceived, StartConsuming, StopConsuming}
+import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor._
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor.{Upsert, _}
 import com.ldaniels528.broadway.core.util.Counter
@@ -31,6 +31,7 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
+  val kafkaGroupId = props.getOrDie("kafka.group")
   val topicParallelism = props.getOrDie("kafka.topic.parallelism").toInt
   val mongoReplicas = props.getOrDie("mongo.replicas")
   val mongoDatabase = props.getOrDie("mongo.database")
@@ -41,7 +42,7 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
   lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoWriter", parallelism = 10)
 
   // create the Kafka message consumer
-  lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), id = "kafkaConsumer", parallelism = topicParallelism)
+  lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), id = "kafkaConsumer", parallelism = 1)
 
   // create a counter for statistics
   val counter = new Counter(1.minute)((delta, rps) => log.info(f"$kafkaTopic -> $mongoCollection: $delta records ($rps%.1f records/second)"))
@@ -53,32 +54,35 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
     case message =>
       log.warn(s"Received unexpected message $message (${Option(message).map(_.getClass.getName).orNull})")
       false
-  }))
+  }), parallelism = 20)
 
   // finally, start the process by initiating the consumption of Avro stock records
   onStart { resource =>
-    kafkaConsumer ! StartConsuming(kafkaTopic, transformer, Some(CSVQuoteRecord.getClassSchema))
+    kafkaConsumer ! StartConsuming(kafkaTopic, kafkaGroupId, transformer, Some(CSVQuoteRecord.getClassSchema))
   }
 
   // stop consuming messages when the narrative is deactivated
   onStop { () =>
-    kafkaConsumer ! StopConsuming(kafkaTopic, transformer)
+    kafkaConsumer ! StopConsuming(kafkaTopic, kafkaGroupId, transformer)
   }
 
   private def persistQuote(rec: GenericRecord): Boolean = {
     rec.asOpt[String]("symbol") foreach { symbol =>
-      val fieldNames = rec.getSchema.getFields.map(_.name).toSeq
+      val fieldNames = rec.getSchema.getFields.map(_.name).filterNot(f => f == "tradeDate" || f == "tradeDateTime").toSeq
       val changePct = rec.asOpt[JDouble]("changePct")
       val prevClose = rec.asOpt[JDouble]("prevClose")
       val lastTrade = rec.asOpt[JDouble]("lastTrade")
       val high = rec.asOpt[JDouble]("high")
       val low = rec.asOpt[JDouble]("low")
+      val tradeDateTime = rec.asOpt[JLong]("tradeDateTime") map(new Date(_))
 
       // build the document
       val doc = rec.toMongoDB(fieldNames) ++ O(
         // calculated fields
         "changePct" -> (changePct getOrElse computeChangePct(prevClose, lastTrade)),
         "spread" -> computeSpread(high, low),
+        "tradeDateTime" -> tradeDateTime,
+        "tradeDate" -> tradeDateTime,
 
         // classification fields
         "assetType" -> "Common Stock",
@@ -103,12 +107,13 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
   }
 
   private def updateNewSymbol(refObj: Option[Any]): Boolean = {
-    refObj foreach { case record: CSVQuoteRecord =>
-      val newSymbol = Option(record.getNewSymbol)
-      val oldSymbol = Option(record.getSymbol) // record.oldSymbol
-      newSymbol.foreach { symbol =>
+    refObj foreach { case rec: GenericRecord =>
+      for {
+         newSymbol <- rec.asOpt[String] ("newSymbol")
+         oldSymbol <- rec.asOpt[String] ("symbol") // record.oldSymbol
+      } {
         mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> oldSymbol), doc = O("symbol" -> oldSymbol))
-        mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> symbol), doc = $set("oldSymbol" -> oldSymbol))
+        mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> newSymbol), doc = $set("oldSymbol" -> oldSymbol))
       }
     }
     true

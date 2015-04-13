@@ -6,7 +6,7 @@ import java.util.{Date, Properties}
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.TransformingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor
-import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor.{AvroMessageReceived, StartConsuming, StopConsuming}
+import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor._
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor.{Upsert, _}
 import com.ldaniels528.broadway.core.util.Counter
@@ -29,6 +29,7 @@ class YFKeyStatisticsKafkaToDBNarrative(config: ServerConfig, id: String, props:
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
+  val kafkaGroupId = props.getOrDie("kafka.group")
   val topicParallelism = props.getOrDie("kafka.topic.parallelism").toInt
   val mongoReplicas = props.getOrDie("mongo.replicas")
   val mongoDatabase = props.getOrDie("mongo.database")
@@ -51,16 +52,16 @@ class YFKeyStatisticsKafkaToDBNarrative(config: ServerConfig, id: String, props:
     case message =>
       log.warn(s"Received unexpected message $message (${Option(message).map(_.getClass.getName).orNull})")
       false
-  }))
+  }), parallelism = 20)
 
   // finally, start the process by initiating the consumption of Avro stock records
   onStart { resource =>
-    kafkaConsumer ! StartConsuming(kafkaTopic, transformer, Some(KeyStatisticsRecord.getClassSchema))
+    kafkaConsumer ! StartConsuming(kafkaTopic, kafkaGroupId, transformer, Some(KeyStatisticsRecord.getClassSchema))
   }
 
   // stop consuming messages when the narrative is deactivated
   onStop { () =>
-    kafkaConsumer ! StopConsuming(kafkaTopic, transformer)
+    kafkaConsumer ! StopConsuming(kafkaTopic, kafkaGroupId, transformer)
   }
 
   private def persistKeyStatistics(rec: GenericRecord): Boolean = {
