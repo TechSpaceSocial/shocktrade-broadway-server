@@ -12,7 +12,7 @@ import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
 import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
-import com.mongodb.casbah.Imports._
+import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.avro.KeyStatisticsRecord
 import com.shocktrade.datacenter.narratives.securities.StockQuoteSupport
 import com.shocktrade.services.YFKeyStatisticsService
@@ -38,7 +38,7 @@ class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props
   val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a MongoDB actor for retrieving stock quotes
-  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoReader", parallelism = 1)
+  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoReader", parallelism = 10)
 
   // create a Kafka publishing actor
   lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), id = "kafkaPublisher", parallelism = topicParallelism)
@@ -60,7 +60,14 @@ class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props
   onStart { resource =>
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,
     // and send it to Kafka
-    mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusHours(24), fetchSize = 5)
+    val lastModified = new DateTime().minusHours(24)
+    log.info(s"Retrieving symbols from collection $mongoCollection (modified since $lastModified)...")
+    mongoReader ! Find(
+      recipient = transformer,
+      name = mongoCollection,
+      query = O("active" -> true, "yfDynUpdates" -> true) ++ $or("yfKeyStatsLastUpdated" $exists false, "yfKeyStatsLastUpdated" $lte lastModified),
+      fields = O("symbol" -> 1),
+      maxFetchSize = 32)
   }
 
   private def toAvro(ks: YFKeyStatistics) = {

@@ -38,7 +38,7 @@ case class ServerConfig(props: java.util.Properties, httpInfo: Option[HttpInfo])
    */
   def prepareActor[T <: Actor : ClassTag](id: String, actor: => T, parallelism: Int = 1) = {
     actorCache.getOrElseUpdate(id, {
-      logger.info(s"Creating actor '$id'...")
+      logger.info(s"Creating actor '$id' ($parallelism instances)...")
       system.actorOf(Props(actor).withRouter(RoundRobinPool(nrOfInstances = parallelism)))
     })
   }

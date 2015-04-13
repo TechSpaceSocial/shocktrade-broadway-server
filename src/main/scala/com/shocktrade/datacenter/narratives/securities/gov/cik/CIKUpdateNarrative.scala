@@ -72,6 +72,7 @@ class CIKUpdateNarrative(config: ServerConfig, id: String, props: Properties)
   onStart { _ =>
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,
     // and send it to Kafka
+    log.info(s"Retrieving symbols from collection $mongoCollection (without a CIK number)...")
     mongoReader ! Find(
       recipient = transformer,
       name = mongoCollection,

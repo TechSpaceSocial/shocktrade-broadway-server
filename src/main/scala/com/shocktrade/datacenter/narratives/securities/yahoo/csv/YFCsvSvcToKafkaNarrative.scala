@@ -12,7 +12,7 @@ import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
 import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
-import com.mongodb.casbah.Imports._
+import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.avro.CSVQuoteRecord
 import com.shocktrade.datacenter.narratives.securities.StockQuoteSupport
 import com.shocktrade.services.YFStockQuoteService
@@ -66,7 +66,14 @@ class YFCsvSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properti
     // 1. Query all symbols not update in the last 5 minutes
     // 2. Send the symbols to the transforming actor, which will load the quote, transform it to Avro
     // 3. Write each Avro record to Kafka
-    mongoReader ! symbolLookupQuery(transformer, mongoCollection, new DateTime().minusMinutes(5), fetchSize = 32)
+    val lastModified = new DateTime().minusMinutes(5)
+    log.info(s"Retrieving symbols from collection $mongoCollection (modified since $lastModified)...")
+    mongoReader ! Find(
+      recipient = transformer,
+      name = mongoCollection,
+      query = O("active" -> true, "yfDynUpdates" -> true) ++ $or("yfDynLastUpdated" $exists false, "yfDynLastUpdated" $lte lastModified),
+      fields = O("symbol" -> 1),
+      maxFetchSize = 32)
   }
 
   private def toAvro(quote: YFStockQuote) = {
