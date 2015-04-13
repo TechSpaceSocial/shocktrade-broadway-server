@@ -38,10 +38,10 @@ class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props
   val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a MongoDB actor for retrieving stock quotes
-  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 1)
+  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoReader", parallelism = 1)
 
   // create a Kafka publishing actor
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = topicParallelism)
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), id = "kafkaPublisher", parallelism = topicParallelism)
 
   // create a counter for statistics
   val counter = new Counter(1.minute)((delta, rps) => log.info(f"Yahoo -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
@@ -55,7 +55,7 @@ class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props
       }
       true
     case _ => false
-  }))
+  }), parallelism = 20)
 
   onStart { resource =>
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,

@@ -31,16 +31,17 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
 
   // extract the properties we need
   val kafkaTopic = props.getOrDie("kafka.topic")
+  val topicParallelism = props.getOrDie("kafka.topic.parallelism").toInt
   val mongoReplicas = props.getOrDie("mongo.replicas")
   val mongoDatabase = props.getOrDie("mongo.database")
   val mongoCollection = props.getOrDie("mongo.collection")
   val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a MongoDB actor for persisting stock quotes
-  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 5)
+  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoWriter", parallelism = 10)
 
   // create the Kafka message consumer
-  lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), parallelism = 1)
+  lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), id = "kafkaConsumer", parallelism = topicParallelism)
 
   // create a counter for statistics
   val counter = new Counter(1.minute)((delta, rps) => log.info(f"$kafkaTopic -> $mongoCollection: $delta records ($rps%.1f records/second)"))

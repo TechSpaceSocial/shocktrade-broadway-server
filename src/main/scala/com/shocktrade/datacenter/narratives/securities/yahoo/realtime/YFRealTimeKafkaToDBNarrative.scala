@@ -40,10 +40,10 @@ class YFRealTimeKafkaToDBNarrative(config: ServerConfig, id: String, props: Prop
   val counter = new Counter(1.minute)((delta, rps) => log.info(f"$kafkaTopic -> $mongoCollection: $delta records ($rps%.1f records/second)"))
 
   // create a MongoDB actor for persisting stock quotes
-  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 10)
+  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoWriter", parallelism = 10)
 
   // create the Kafka message consumer
-  lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), parallelism = 1)
+  lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), id = "kafkaConsumer", parallelism = 1)
 
   // create an actor to persist the Avro-encoded stock records to MongoDB
   lazy val transformer = prepareActor(new TransformingActor({

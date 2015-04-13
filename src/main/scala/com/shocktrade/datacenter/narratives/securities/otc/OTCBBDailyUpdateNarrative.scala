@@ -36,10 +36,10 @@ class OTCBBDailyUpdateNarrative(config: ServerConfig, id: String, props: Propert
   private val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a file reader actor to read lines from the incoming resource
-  lazy val fileReader = prepareActor(new FileReadingActor(config), parallelism = 1)
+  lazy val fileReader = prepareActor(new FileReadingActor(config), id = "fileReader", parallelism = 10)
 
   // create a Kafka publishing actor for OTC transactions
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = topicParallelism)
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), id = "kafkaPublisher", parallelism = topicParallelism)
 
   // create a counter for statistics
   val counter = new Counter(1.minute)((delta, rps) => log.info(f"OTCBB -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
@@ -55,7 +55,7 @@ class OTCBBDailyUpdateNarrative(config: ServerConfig, id: String, props: Propert
     case _: OpeningFile => true
     case _: ClosingFile => true
     case _ => false
-  }))
+  }), parallelism = 5)
 
   onStart {
     case Some(resource: ReadableResource) =>

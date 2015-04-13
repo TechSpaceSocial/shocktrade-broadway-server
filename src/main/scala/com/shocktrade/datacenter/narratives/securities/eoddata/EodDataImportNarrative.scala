@@ -36,7 +36,7 @@ class EodDataImportNarrative(config: ServerConfig, id: String, props: Properties
   lazy val fileReader = prepareActor(new FileReadingActor(config), parallelism = 1)
 
   // create a Kafka publishing actor
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = topicParallelism)
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), id = "kafkaPublisher", parallelism = topicParallelism)
 
   // create a counter for statistics
   val counter = new Counter(1.minute)((delta, rps) => log.info(f"EODDATA -> $kafkaTopic: $delta records ($rps%.1f records/second)"))

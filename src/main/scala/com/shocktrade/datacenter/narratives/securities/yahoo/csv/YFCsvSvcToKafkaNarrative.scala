@@ -41,11 +41,11 @@ class YFCsvSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properti
   val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a MongoDB actor for retrieving stock quotes
-  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 1)
+  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoReader", parallelism = 10)
 
   // create a Kafka publishing actor for stock quotes
   // NOTE: the Kafka parallelism is equal to the number of brokers
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = topicParallelism)
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), id = "kafkaPublisher", parallelism = topicParallelism)
 
   // create a counter for statistics
   val counter = new Counter(1.minute)((delta, rps) => log.info(f"Yahoo -> $kafkaTopic: $delta records ($rps%.1f records/second)"))
