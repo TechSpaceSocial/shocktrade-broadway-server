@@ -40,21 +40,28 @@ class KafkaConsumingActor(zkConnect: String) extends BroadwayActor {
 
   private def startConsumer(topic: String, groupId: String, avroSchema: Option[Schema], target: ActorRef): KafkaMacroConsumer = {
     val partitions = KafkaMicroConsumer.getTopicPartitions(topic)
-    val parallelism = 1 + partitions.size
+    log.info(s"Topic $topic has ${partitions.size} partitions...")
 
+    /*
     // ensure the group ID exists for each partition
     partitions.foreach { partition =>
       new KafkaMicroConsumer(new TopicAndPartition(topic, partition), zk.getBrokerList) use { consumer =>
-        if (consumer.fetchOffsets(groupId).isEmpty) {
-          consumer.getFirstOffset.foreach(consumer.commitOffsets(groupId, _, "Broadway setting initial position"))
+        val consumerOffset = consumer.fetchOffsets(groupId)
+        consumerOffset.foreach(offset => log.info(s"$topic:$partition/$groupId offset is $offset"))
+
+        if (consumerOffset.isEmpty) {
+          consumer.getFirstOffset.foreach { offset =>
+            log.info(s"Committing initial offset for $topic:$partition as $offset...")
+            consumer.commitOffsets(groupId, offset, "Broadway setting initial offset")
+          }
         }
       }
-    }
+    }*/
 
     // start the consumer
     avroSchema match {
-      case Some(schema) => startAvroConsumer(topic, groupId, parallelism, schema, target)
-      case None => startBinaryConsumer(topic, groupId, parallelism, target)
+      case Some(schema) => startAvroConsumer(topic, groupId, parallelism = partitions.size, schema, target)
+      case None => startBinaryConsumer(topic, groupId, parallelism = partitions.size, target)
     }
   }
 
@@ -69,7 +76,7 @@ class KafkaConsumingActor(zkConnect: String) extends BroadwayActor {
   private def startBinaryConsumer(topic: String, groupId: String, parallelism: Int, target: ActorRef): KafkaMacroConsumer = {
     val consumer = KafkaMacroConsumer(zkConnect, groupId)
     consumer.observe(topic, parallelism) { md =>
-      target ! MessageReceived(topic, md.partition, md.offset, md.key, md.message)
+      target ! BinaryMessageReceived(topic, md.partition, md.offset, md.key, md.message)
     }
     consumer
   }
@@ -115,7 +122,7 @@ object KafkaConsumingActor {
    * @param key the message key
    * @param message the message data
    */
-  case class MessageReceived(topic: String, partition: Int, offset: Long, key: Array[Byte], message: Array[Byte])
+  case class BinaryMessageReceived(topic: String, partition: Int, offset: Long, key: Array[Byte], message: Array[Byte])
 
   /**
    * This message is sent to all registered actors when an Avro message is available for

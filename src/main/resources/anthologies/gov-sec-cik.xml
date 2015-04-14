@@ -26,6 +26,6 @@
     <trigger
             schedule-ref="DailySchedule"
             narrative-ref="CIKUpdateNarrative"
-            enabled="true" />
+            enabled="false" />
 
 </anthology>

@@ -1,5 +1,6 @@
 package com.shocktrade.datacenter.narratives.securities.yahoo.csv
 
+import com.ldaniels528.broadway.core.actors.BroadwayActor.Implicits._
 import java.lang.{Double => JDouble, Long => JLong}
 import java.util.{Date, Properties}
 
@@ -45,7 +46,8 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
   lazy val kafkaConsumer = prepareActor(new KafkaConsumingActor(zkConnect), id = "kafkaConsumer", parallelism = 1)
 
   // create a counter for statistics
-  val counter = new Counter(1.minute)((delta, rps) => log.info(f"$kafkaTopic -> $mongoCollection: $delta records ($rps%.1f records/second)"))
+  val counter = new Counter(1.minute)((successes, failures, rps) =>
+    log.info(f"$kafkaTopic -> $mongoCollection: $successes records, $failures failures ($rps%.1f records/second)"))
 
   // create an actor to persist the Avro-encoded stock records to MongoDB
   lazy val transformer = prepareActor(new TransformingActor({
@@ -79,8 +81,8 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
       // build the document
       val doc = rec.toMongoDB(fieldNames) ++ O(
         // calculated fields
-        "changePct" -> (changePct getOrElse computeChangePct(prevClose, lastTrade)),
-        "spread" -> computeSpread(high, low),
+        "changePct" -> (changePct getOrElse computeChangePctJava(prevClose, lastTrade)),
+        "spread" -> computeSpreadJava(high, low),
         "tradeDateTime" -> tradeDateTime,
         "tradeDate" -> tradeDateTime,
 

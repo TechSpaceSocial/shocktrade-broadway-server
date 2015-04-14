@@ -4,6 +4,7 @@ import java.lang.{Long => JLong}
 import java.util.{Date, Properties}
 
 import com.ldaniels528.broadway.BroadwayNarrative
+import com.ldaniels528.broadway.core.actors.BroadwayActor.Implicits._
 import com.ldaniels528.broadway.core.actors.TransformingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor._
@@ -34,16 +35,18 @@ class YFKeyStatisticsKafkaToDBNarrative(config: ServerConfig, id: String, props:
   val mongoReplicas = props.getOrDie("mongo.replicas")
   val mongoDatabase = props.getOrDie("mongo.database")
   val mongoCollection = props.getOrDie("mongo.collection")
+  val mongoParallelism = props.getOrDie("mongo.parallelism").toInt
   val zkConnect = props.getOrDie("zookeeper.connect")
 
   // create a counter for statistics
-  val counter = new Counter(1.minute)((delta, rps) => log.info(f"$kafkaTopic -> $mongoCollection: $delta records ($rps%.1f records/second)"))
+  val counter = new Counter(1.minute)((successes, failures, rps) =>
+    log.info(f"$kafkaTopic -> $mongoCollection: $successes records, $failures failures ($rps%.1f records/second)"))
 
   // create a MongoDB actor for persisting stock quotes
-  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoWriter", parallelism = 10)
+  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoWriter", parallelism = mongoParallelism)
 
   // create the Kafka message consumer
-  lazy val kafkaConsumer = prepareActor(actor = new KafkaConsumingActor(zkConnect), id = "kafkaConsumer", parallelism = topicParallelism)
+  lazy val kafkaConsumer = prepareActor(actor = new KafkaConsumingActor(zkConnect))
 
   // create an actor to persist the Avro-encoded stock records to MongoDB
   lazy val transformer = prepareActor(new TransformingActor({
@@ -72,8 +75,7 @@ class YFKeyStatisticsKafkaToDBNarrative(config: ServerConfig, id: String, props:
       val doc = rec.toMongoDB(fieldNames) ++ O(
         // administrative fields
         "yfKeyStatsRespTimeMsec" -> rec.asOpt[JLong]("responseTimeMsec"),
-        "yfKeyStatsLastUpdated" -> new Date(),
-        "lastUpdated" -> new Date()
+        "yfKeyStatsLastUpdated" -> new Date()
       )
 
       mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> symbol), doc = $set(doc.toSeq: _*), refObj = Some(rec))

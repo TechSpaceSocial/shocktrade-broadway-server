@@ -8,25 +8,12 @@
 
     <!-- Narratives -->
 
-    <narrative id="YahooRealTimeSvcToKafkaNarrative"
-               class="com.shocktrade.datacenter.narratives.securities.yahoo.realtime.YFRealTimeSvcToKafkaNarrative">
+    <narrative id="YFRealTimeNarrative"
+               class="com.shocktrade.datacenter.narratives.securities.yahoo.realtime.YFRealTimeNarrative">
         <properties>
             <property key="kafka.topic">yahoo.quotes.realtime.avro</property>
-            <property key="kafka.group">tracker</property>
-            <property key="kafka.topic.parallelism">5</property>
-            <property key="mongo.database">shocktrade</property>
-            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
-            <property key="mongo.collection">Stocks</property>
-            <property key="zookeeper.connect">dev801:2181</property>
-        </properties>
-    </narrative>
-
-    <narrative id="YahooRealTimeKafkaToDBNarrative"
-               class="com.shocktrade.datacenter.narratives.securities.yahoo.realtime.YFRealTimeKafkaToDBNarrative">
-        <properties>
-            <property key="kafka.topic">yahoo.quotes.realtime.avro</property>
-            <property key="kafka.group">tracker</property>
-            <property key="kafka.topic.parallelism">5</property>
+            <property key="kafka.group">tracker1</property>
+            <property key="kafka.topic.parallelism">10</property>
             <property key="mongo.database">shocktrade</property>
             <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
             <property key="mongo.collection">Stocks</property>
@@ -38,12 +25,7 @@
 
     <trigger
             schedule-ref="TradingSchedule"
-            narrative-ref="YahooRealTimeSvcToKafkaNarrative"
-            enabled="true" />
-
-    <trigger
-            schedule-ref="PeriodicSchedule"
-            narrative-ref="YahooRealTimeKafkaToDBNarrative"
+            narrative-ref="YFRealTimeNarrative"
             enabled="true" />
 
 </anthology>
