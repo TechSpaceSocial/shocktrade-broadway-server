@@ -47,16 +47,28 @@ class MongoDBActor(client: () => MongoClient, databaseName: String) extends Broa
       getCollection(name).foreach(mc => recipient ! MongoFindOneResult(name, mc.findOneByID(id, fields)))
 
     case Insert(recipient, name, doc, concern, refObj) =>
-      getCollection(name).foreach(mc => recipient.foreach(_ ! MongoWriteResult(name, doc, mc.insert(doc, concern), refObj)))
+      getCollection(name).foreach { mc =>
+        val result = mc.insert(doc, concern)
+        recipient.foreach(_ ! MongoWriteResult(name, doc, result, refObj))
+      }
 
     case Save(recipient, name, doc, concern, refObj) =>
-      getCollection(name).foreach(mc => recipient.foreach(_ ! MongoWriteResult(name, doc, mc.save(doc, concern), refObj)))
+      getCollection(name).foreach { mc =>
+        val result = mc.save(doc, concern)
+        recipient.foreach(_ ! MongoWriteResult(name, doc, result, refObj))
+      }
 
     case Update(recipient, name, query, doc, multi, concern, refObj) =>
-      getCollection(name).foreach(mc => recipient.foreach(_ ! MongoWriteResult(name, doc, mc.update(query, doc, upsert = false, multi, concern), refObj)))
+      getCollection(name).foreach { mc =>
+        val result = mc.update(query, doc, upsert = false, multi, concern)
+        recipient.foreach(_ ! MongoWriteResult(name, doc, result, refObj))
+      }
 
     case Upsert(recipient, name, query, doc, multi, concern, refObj) =>
-      getCollection(name).foreach(mc => recipient.foreach(_ ! MongoWriteResult(name, doc, mc.update(query, doc, upsert = true, multi, concern), refObj)))
+      getCollection(name).foreach { mc =>
+        val result = mc.update(query, doc, upsert = true, multi, concern)
+        recipient.foreach(_ ! MongoWriteResult(name, doc, result, refObj))
+      }
 
     case message =>
       unhandled(message)

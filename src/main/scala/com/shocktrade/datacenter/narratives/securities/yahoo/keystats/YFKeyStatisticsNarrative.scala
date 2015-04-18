@@ -1,15 +1,16 @@
 package com.shocktrade.datacenter.narratives.securities.yahoo.keystats
 
 import java.lang.{Double => JDouble, Long => JLong}
-import java.util.Properties
+import java.util.{Date, Properties}
 
 import com.ldaniels528.broadway.BroadwayNarrative
 import com.ldaniels528.broadway.core.actors.TransformingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.PublishAvro
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
-import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
+import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor.{Upsert, _}
 import com.ldaniels528.broadway.core.util.Counter
+import com.ldaniels528.broadway.datasources.avro.AvroUtil._
 import com.ldaniels528.broadway.server.ServerConfig
 import com.ldaniels528.commons.helpers.PropertiesHelper._
 import com.mongodb.casbah.Imports.{DBObject => O, _}
@@ -17,8 +18,10 @@ import com.shocktrade.avro.KeyStatisticsRecord
 import com.shocktrade.datacenter.narratives.securities.StockQuoteSupport
 import com.shocktrade.services.YFKeyStatisticsService
 import com.shocktrade.services.YFKeyStatisticsService.YFKeyStatistics
+import org.apache.avro.generic.GenericRecord
 import org.joda.time.DateTime
 
+import scala.collection.JavaConversions._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -26,7 +29,7 @@ import scala.util.{Failure, Success, Try}
  * Yahoo! Finance Key Statistics Narrative
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props: Properties)
+class YFKeyStatisticsNarrative(config: ServerConfig, id: String, props: Properties)
   extends BroadwayNarrative(config, id, props)
   with StockQuoteSupport {
 
@@ -38,30 +41,52 @@ class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props
   val mongoCollection = props.getOrDie("mongo.collection")
   val zkConnect = props.getOrDie("zookeeper.connect")
 
-  // create a MongoDB actor for retrieving stock quotes
-  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoReader", parallelism = 10)
-
   // create a Kafka publishing actor
   lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), id = "kafkaPublisher", parallelism = topicParallelism)
 
-  // create a counter for statistics
-  val counter = new Counter(1.minute)((successes, failures, rps) =>
+  // create a MongoDB actor for retrieving stock quotes
+  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoReader", parallelism = 10)
+
+  // create a MongoDB actor for persisting stock quotes
+  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoWriter", parallelism = 1)
+
+  // create the counters for statistics
+  val counterK = new Counter(1.minute)((successes, failures, rps) =>
     log.info(f"Yahoo -> $kafkaTopic: $successes records, $failures failures ($rps%.1f records/second)"))
+
+  val counterM = new Counter(1.minute)((successes, failures, rps) =>
+    log.info(f"Yahoo -> $mongoCollection: $successes records, $failures failures ($rps%.1f records/second)"))
 
   // create an actor to transform the MongoDB results to Avro-encoded records
   lazy val transformer = prepareActor(new TransformingActor({
+    case _: MongoWriteResult => true
     case MongoFindResults(coll, docs) =>
       docs.flatMap(_.getAs[String]("symbol")) foreach { symbol =>
         Try {
-          kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(YFKeyStatisticsService.getKeyStatisticsSync(symbol)))
+          // retrieve the key statistics
+          val ks = YFKeyStatisticsService.getKeyStatisticsSync(symbol)
+
+          // convert the object to Avro
+          val rec = toAvro(ks)
+
+          // write the record to Kafka
+          kafkaPublisher ! PublishAvro(kafkaTopic, rec)
+
+          // write the record to MongoDB
+          persistKeyStatistics(rec)
+
         } match {
-          case Success(_) => counter += 1
+          case Success(_) =>
+            counterK += 1
+            counterM += 1
           case Failure(e) =>
             log.error(s"Failed to publish key statistics for $symbol: ${e.getMessage}")
         }
       }
       true
-    case _ => false
+    case message =>
+      log.warn(s"Received unexpected message $message (${Option(message).map(_.getClass.getName).orNull})")
+      false
   }), parallelism = 20)
 
   onStart { resource =>
@@ -75,6 +100,22 @@ class YFKeyStatisticsSvcToKafkaNarrative(config: ServerConfig, id: String, props
       query = O("active" -> true, "yfDynUpdates" -> true) ++ $or("yfKeyStatsLastUpdated" $exists false, "yfKeyStatsLastUpdated" $lte lastModified),
       fields = O("symbol" -> 1),
       maxFetchSize = 32)
+  }
+
+  private def persistKeyStatistics(rec: GenericRecord): Boolean = {
+    rec.asOpt[String]("symbol") foreach { symbol =>
+      val fieldNames = rec.getSchema.getFields.map(_.name).toSeq
+
+      // build the document
+      val doc = rec.toMongoDB(fieldNames) ++ O(
+        // administrative fields
+        "yfKeyStatsRespTimeMsec" -> rec.asOpt[JLong]("responseTimeMsec"),
+        "yfKeyStatsLastUpdated" -> new Date()
+      )
+
+      mongoWriter ! Upsert(recipient = None, mongoCollection, query = O("symbol" -> symbol), doc = $set(doc.toSeq: _*))
+    }
+    true
   }
 
   private def toAvro(ks: YFKeyStatistics) = {

@@ -8,25 +8,11 @@
 
     <!-- Narratives -->
 
-    <narrative id="YFKeyStatisticsSvcToKafkaNarrative"
-               class="com.shocktrade.datacenter.narratives.securities.yahoo.keystats.YFKeyStatisticsSvcToKafkaNarrative">
+    <narrative id="YFKeyStatisticsNarrative"
+               class="com.shocktrade.datacenter.narratives.securities.yahoo.keystats.YFKeyStatisticsNarrative">
         <properties>
             <property key="kafka.topic">yahoo.keystats.avro</property>
-            <property key="kafka.group">tracker</property>
-            <property key="kafka.topic.parallelism">10</property>
-            <property key="mongo.database">shocktrade</property>
-            <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
-            <property key="mongo.collection">Stocks</property>
-            <property key="mongo.parallelism">10</property>
-            <property key="zookeeper.connect">dev801:2181</property>
-        </properties>
-    </narrative>
-
-    <narrative id="YFKeyStatisticsKafkaToDBNarrative"
-               class="com.shocktrade.datacenter.narratives.securities.yahoo.keystats.YFKeyStatisticsKafkaToDBNarrative">
-        <properties>
-            <property key="kafka.topic">yahoo.keystats.avro</property>
-            <property key="kafka.group">tracker</property>
+            <property key="kafka.group">shocktrade_ks</property>
             <property key="kafka.topic.parallelism">10</property>
             <property key="mongo.database">shocktrade</property>
             <property key="mongo.replicas">dev801:27017,dev802:27017,dev803:27017</property>
@@ -40,12 +26,7 @@
 
     <trigger
             schedule-ref="PeriodicSchedule"
-            narrative-ref="YFKeyStatisticsSvcToKafkaNarrative"
-            enabled="false" />
-
-    <trigger
-            schedule-ref="PeriodicSchedule"
-            narrative-ref="YFKeyStatisticsKafkaToDBNarrative"
-            enabled="false" />
+            narrative-ref="YFKeyStatisticsNarrative"
+            enabled="true" />
 
 </anthology>
