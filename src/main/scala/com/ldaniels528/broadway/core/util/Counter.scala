@@ -3,6 +3,7 @@ package com.ldaniels528.broadway.core.util
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.concurrent.duration.Duration
+import scala.language.implicitConversions
 
 /**
  * Processed Record Counter
@@ -38,5 +39,15 @@ class Counter(frequency: Duration)(observer: (Long, Long, Double) => Unit) {
       }
     }
   }
+
+}
+
+/**
+ * Counter Singleton
+ * @author Lawrence Daniels <lawrence.daniels@gmail.com>
+ */
+object Counter {
+
+  implicit def option2Counter(counter: Counter): Option[Counter] = Option(counter)
 
 }

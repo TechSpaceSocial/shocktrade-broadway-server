@@ -3,12 +3,10 @@ package com.ldaniels528.broadway.core.actors.kafka
 import akka.actor.ActorRef
 import com.ldaniels528.broadway.core.actors.BroadwayActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor._
-import com.ldaniels528.broadway.core.actors.kafka.KafkaHelper._
+import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.ldaniels528.trifecta.io.kafka.{KafkaMacroConsumer, KafkaMicroConsumer}
 import com.ldaniels528.trifecta.io.zookeeper.ZKProxy
-import com.ldaniels528.commons.helpers.ResourceHelper._
-import kafka.common.TopicAndPartition
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 
@@ -18,7 +16,7 @@ import scala.collection.concurrent.TrieMap
  * Kafka Message Consuming Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class KafkaConsumingActor(zkConnect: String) extends BroadwayActor {
+class KafkaConsumingActor(zkConnect: String, counter: Option[Counter] = None) extends BroadwayActor {
   private implicit lazy val zk = getZKProxy(zkConnect)
   private val consumerGroups = TrieMap[(String, String, ActorRef), KafkaMacroConsumer]()
 
@@ -69,6 +67,7 @@ class KafkaConsumingActor(zkConnect: String) extends BroadwayActor {
   private def startAvroConsumer(topic: String, groupId: String, parallelism: Int, schema: Schema, target: ActorRef): KafkaMacroConsumer = {
     val consumer = KafkaMacroConsumer(zkConnect, groupId)
     consumer.observe(topic, parallelism) { md =>
+      counter.foreach(_ += 1)
       target ! AvroMessageReceived(topic, md.partition, md.offset, md.key, AvroConversion.decodeRecord(schema, md.message))
     }
     consumer
@@ -77,6 +76,7 @@ class KafkaConsumingActor(zkConnect: String) extends BroadwayActor {
   private def startBinaryConsumer(topic: String, groupId: String, parallelism: Int, target: ActorRef): KafkaMacroConsumer = {
     val consumer = KafkaMacroConsumer(zkConnect, groupId)
     consumer.observe(topic, parallelism) { md =>
+      counter.foreach(_ += 1)
       target ! BinaryMessageReceived(topic, md.partition, md.offset, md.key, md.message)
     }
     consumer

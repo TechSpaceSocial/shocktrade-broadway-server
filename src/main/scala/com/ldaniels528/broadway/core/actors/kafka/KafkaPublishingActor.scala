@@ -3,6 +3,7 @@ package com.ldaniels528.broadway.core.actors.kafka
 import com.datastax.driver.core.utils.UUIDs
 import com.ldaniels528.broadway.core.actors.BroadwayActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaPublishingActor.{Publish, PublishAvro}
+import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.trifecta.io.ByteBufferUtils
 import com.ldaniels528.trifecta.io.avro.AvroConversion
 import com.ldaniels528.trifecta.io.kafka.KafkaPublisher
@@ -15,7 +16,7 @@ import scala.util.{Failure, Success}
  * Kafka-Avro Publishing Actor
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class KafkaPublishingActor(zookeeperConnect: String) extends BroadwayActor {
+class KafkaPublishingActor(zookeeperConnect: String, counter: Option[Counter] = None) extends BroadwayActor {
   private lazy val publisher = KafkaPublishingActor.getPublisher(zookeeperConnect)
 
   override def receive = {
@@ -35,8 +36,9 @@ class KafkaPublishingActor(zookeeperConnect: String) extends BroadwayActor {
    */
   private def publish(topic: String, key: Array[Byte], message: Array[Byte], attempts: Int = 1) {
     publisher.publish(topic, key, message) match {
-      case Success(_) =>
+      case Success(_) => counter.foreach(_ += 1)
       case Failure(e) =>
+        counter.foreach(_ -= 1)
         if (!retryPublish(topic, key, message, attempts)) {
           log.error(s"Failed ($attempts times) to publish message: ${e.getMessage} (${e.getClass.getName}})")
         }

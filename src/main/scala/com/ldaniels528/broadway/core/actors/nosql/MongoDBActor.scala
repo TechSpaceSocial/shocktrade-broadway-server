@@ -3,6 +3,7 @@ package com.ldaniels528.broadway.core.actors.nosql
 import akka.actor.ActorRef
 import com.ldaniels528.broadway.core.actors.BroadwayActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor._
+import com.ldaniels528.broadway.core.util.Counter
 import com.mongodb.casbah.Imports.{DBObject => Q, _}
 import com.mongodb.casbah.commons.conversions.scala.RegisterJodaTimeConversionHelpers
 import com.mongodb.{DBObject, ServerAddress}
@@ -14,7 +15,7 @@ import scala.collection.concurrent.TrieMap
  * MongoDB server instance. NOTE: `find` and `findOne` queries require an actor a a recipient for retrieved records.
  * @author Lawrence Daniels <lawrence.daniels@gmail.com>
  */
-class MongoDBActor(client: () => MongoClient, databaseName: String) extends BroadwayActor {
+class MongoDBActor(client: () => MongoClient, databaseName: String, counter: Option[Counter]) extends BroadwayActor {
   private val collections = TrieMap[String, MongoCollection]()
   private var conn_? : Option[MongoClient] = None
 
@@ -30,44 +31,63 @@ class MongoDBActor(client: () => MongoClient, databaseName: String) extends Broa
 
   override def receive = {
     case Find(recipient, name, query, fields, maxBatchSize) =>
-      getCollection(name).foreach(_.find(query, fields).sliding(maxBatchSize, maxBatchSize).foreach(recipient ! MongoFindResults(name, _)))
+      getCollection(name).foreach(_.find(query, fields).sliding(maxBatchSize, maxBatchSize).foreach { docs =>
+        recipient ! MongoFindResults(name, docs)
+        counter.foreach(_ += docs.size)
+      })
 
     case FindAndModify(recipient, name, query, fields, sort, update, remove, returnNew, upsert) =>
       getCollection(name)
         .foreach(_.findAndModify(query, fields, sort, remove, update, returnNew, upsert)
-        .foreach(recipient ! MongoFindAndModifyResult(name, _)))
+        .foreach { doc =>
+        recipient ! MongoFindAndModifyResult(name, doc)
+        counter.foreach(_ += 1)
+      })
 
     case FindAndRemove(recipient, name, query) =>
-      getCollection(name).foreach(mc => recipient ! MongoFindOneResult(name, mc.findAndRemove(query)))
+      getCollection(name).foreach { mc =>
+        recipient ! MongoFindOneResult(name, mc.findAndRemove(query))
+        counter.foreach(_ += 1)
+      }
 
     case FindOne(recipient, name, query, fields) =>
-      getCollection(name).foreach(mc => recipient ! MongoFindOneResult(name, mc.findOne(query, fields)))
+      getCollection(name).foreach { mc =>
+        recipient ! MongoFindOneResult(name, mc.findOne(query, fields))
+        counter.foreach(_ += 1)
+      }
 
     case FindOneByID(recipient, name, id, fields) =>
-      getCollection(name).foreach(mc => recipient ! MongoFindOneResult(name, mc.findOneByID(id, fields)))
+      getCollection(name).foreach { mc =>
+        recipient ! MongoFindOneResult(name, mc.findOneByID(id, fields))
+        counter.foreach(_ += 1)
+      }
 
     case Insert(recipient, name, doc, concern, refObj) =>
       getCollection(name).foreach { mc =>
         val result = mc.insert(doc, concern)
         recipient.foreach(_ ! MongoWriteResult(name, doc, result, refObj))
+        counter.foreach(_ += 1)
       }
 
     case Save(recipient, name, doc, concern, refObj) =>
       getCollection(name).foreach { mc =>
         val result = mc.save(doc, concern)
         recipient.foreach(_ ! MongoWriteResult(name, doc, result, refObj))
+        counter.foreach(_ += 1)
       }
 
     case Update(recipient, name, query, doc, multi, concern, refObj) =>
       getCollection(name).foreach { mc =>
         val result = mc.update(query, doc, upsert = false, multi, concern)
         recipient.foreach(_ ! MongoWriteResult(name, doc, result, refObj))
+        counter.foreach(_ += 1)
       }
 
     case Upsert(recipient, name, query, doc, multi, concern, refObj) =>
       getCollection(name).foreach { mc =>
         val result = mc.update(query, doc, upsert = true, multi, concern)
         recipient.foreach(_ ! MongoWriteResult(name, doc, result, refObj))
+        counter.foreach(_ += 1)
       }
 
     case message =>
@@ -87,15 +107,8 @@ object MongoDBActor {
   /**
    * Creates a new database connection
    */
-  def apply(connectionURL: String, databaseName: String) = {
-    new MongoDBActor(() => MongoClient(new MongoClientURI(connectionURL)), databaseName)
-  }
-
-  /**
-   * Creates a new database connection
-   */
-  def apply(addresses: List[ServerAddress], databaseName: String) = {
-    new MongoDBActor(() => MongoClient(addresses), databaseName)
+  def apply(addresses: List[ServerAddress], databaseName: String, counter: Option[Counter] = None) = {
+    new MongoDBActor(() => MongoClient(addresses), databaseName, counter)
   }
 
   /**

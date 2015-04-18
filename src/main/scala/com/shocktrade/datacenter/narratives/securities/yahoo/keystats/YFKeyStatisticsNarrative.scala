@@ -23,7 +23,6 @@ import org.joda.time.DateTime
 
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
 
 /**
  * Yahoo! Finance Key Statistics Narrative
@@ -39,35 +38,36 @@ class YFKeyStatisticsNarrative(config: ServerConfig, id: String, props: Properti
   val mongoReplicas = props.getOrDie("mongo.replicas")
   val mongoDatabase = props.getOrDie("mongo.database")
   val mongoCollection = props.getOrDie("mongo.collection")
+  val mongoParallelism = props.getOrDie("mongo.parallelism").toInt
   val zkConnect = props.getOrDie("zookeeper.connect")
-
-  // create a Kafka publishing actor
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), id = "kafkaPublisher", parallelism = topicParallelism)
-
-  // create a MongoDB actor for retrieving stock quotes
-  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoReader", parallelism = 10)
-
-  // create a MongoDB actor for persisting stock quotes
-  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), id = "mongoWriter", parallelism = 1)
 
   // create the counters for statistics
   val counterK = new Counter(1.minute)((successes, failures, rps) =>
     log.info(f"Yahoo -> $kafkaTopic: $successes records, $failures failures ($rps%.1f records/second)"))
 
-  val counterM = new Counter(1.minute)((successes, failures, rps) =>
-    log.info(f"Yahoo -> $mongoCollection: $successes records, $failures failures ($rps%.1f records/second)"))
+  val counterMR = new Counter(1.minute)((successes, failures, rps) =>
+    log.info(f"Yahoo -> $mongoCollection[+r]: $successes records, $failures failures ($rps%.1f records/second)"))
+
+  val counterMW = new Counter(1.minute)((successes, failures, rps) =>
+    log.info(f"Yahoo -> $mongoCollection[+w]: $successes records, $failures failures ($rps%.1f records/second)"))
+
+  // create a Kafka publishing actor
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect, counterK), id = "kafkaPublisher", parallelism = topicParallelism)
+
+  // create a MongoDB actor for retrieving stock quotes
+  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase, counterMR), id = "mongoReader", parallelism = 1)
+
+  // create a MongoDB actor for persisting stock quotes
+  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase, counterMW), id = "mongoWriter", parallelism = mongoParallelism)
 
   // create an actor to transform the MongoDB results to Avro-encoded records
   lazy val transformer = prepareActor(new TransformingActor({
     case _: MongoWriteResult => true
     case MongoFindResults(coll, docs) =>
       docs.flatMap(_.getAs[String]("symbol")) foreach { symbol =>
-        Try {
-          // retrieve the key statistics
-          val ks = YFKeyStatisticsService.getKeyStatisticsSync(symbol)
-
-          // convert the object to Avro
-          val rec = toAvro(ks)
+        try {
+          // retrieve the key statistics as Avro
+          val rec = toAvro(YFKeyStatisticsService.getKeyStatisticsSync(symbol))
 
           // write the record to Kafka
           kafkaPublisher ! PublishAvro(kafkaTopic, rec)
@@ -75,11 +75,8 @@ class YFKeyStatisticsNarrative(config: ServerConfig, id: String, props: Properti
           // write the record to MongoDB
           persistKeyStatistics(rec)
 
-        } match {
-          case Success(_) =>
-            counterK += 1
-            counterM += 1
-          case Failure(e) =>
+        } catch {
+          case e: Exception =>
             log.error(s"Failed to publish key statistics for $symbol: ${e.getMessage}")
         }
       }
@@ -92,7 +89,7 @@ class YFKeyStatisticsNarrative(config: ServerConfig, id: String, props: Properti
   onStart { resource =>
     // Sends the symbols to the transforming actor, which will load the quote, transform it to Avro,
     // and send it to Kafka
-    val lastModified = new DateTime().minusHours(24)
+    val lastModified = new DateTime().minusHours(48)
     log.info(s"Retrieving key statistics symbols from collection $mongoCollection (modified since $lastModified)...")
     mongoReader ! Find(
       recipient = transformer,

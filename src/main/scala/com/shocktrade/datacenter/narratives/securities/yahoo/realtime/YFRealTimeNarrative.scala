@@ -41,15 +41,27 @@ class YFRealTimeNarrative(config: ServerConfig, id: String, props: Properties)
   val mongoCollection = props.getOrDie("mongo.collection")
   val zkConnect = props.getOrDie("zookeeper.connect")
 
+  // create the counters for statistics
+  val counterK = new Counter(1.minute)((successes, failures, rps) =>
+    log.info(f"Transformer -> $kafkaTopic: $successes records, $failures failures ($rps%.1f records/second)"))
+
+  val counterMR = new Counter(1.minute)((successes, failures, rps) =>
+    log.info(f"$mongoCollection[+r] -> Transformer: $successes records, $failures failures ($rps%.1f records/second)"))
+
+  val counterMW = new Counter(1.minute)((successes, failures, rps) =>
+    log.info(f"Transformer -> $mongoCollection[+w]: $successes records, $failures failures ($rps%.1f records/second)"))
+
+  val counterT = new Counter(1.minute)((successes, failures, rps) =>
+    log.info(f"Yahoo -> Transformer: $successes records, $failures failures ($rps%.1f records/second)"))
+
   // create a MongoDB actor for retrieving stock quotes
-  lazy val mongoActor = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase), parallelism = 30)
+  lazy val mongoReader = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase, counterMR), parallelism = 1)
+
+  // create a MongoDB actor for retrieving stock quotes
+  lazy val mongoWriter = prepareActor(MongoDBActor(parseServerList(mongoReplicas), mongoDatabase, counterMW), parallelism = 30)
 
   // create a Kafka publishing actor
-  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect), parallelism = 30)
-
-  // create a counter for statistics
-  val counter = new Counter(1.minute)((successes, failures, rps) =>
-    log.info(f"Yahoo -> $kafkaTopic: $successes records, $failures failures ($rps%.1f records/second)"))
+  lazy val kafkaPublisher = prepareActor(new KafkaPublishingActor(zkConnect, counterK), parallelism = 30)
 
   // create an actor to transform the MongoDB results to Avro-encoded records
   lazy val transformer: ActorRef = prepareActor(new TransformingActor({
@@ -63,12 +75,12 @@ class YFRealTimeNarrative(config: ServerConfig, id: String, props: Properties)
           kafkaPublisher ! PublishAvro(kafkaTopic, toAvro(quote))
 
           // also write the quote to the database
-          mongoActor ! Upsert(recipient = None, mongoCollection, query = O("symbol" -> symbol), doc = toMongoDoc(quote))
+          mongoWriter ! Upsert(recipient = None, mongoCollection, query = O("symbol" -> symbol), doc = toMongoDoc(quote))
 
         } match {
-          case Success(_) => counter += 1
+          case Success(_) => counterT += 1
           case Failure(e) =>
-            counter -= 1
+            counterT -= 1
             log.error(s"Failed to process real-time quote for $symbol: ${e.getMessage}")
         }
       }
@@ -84,7 +96,7 @@ class YFRealTimeNarrative(config: ServerConfig, id: String, props: Properties)
     // db.Stocks.count({active:true, exchange:{$nin:['OTCBB','OTHER_OTC']}})
     val lastModified = new DateTime().minusMinutes(5)
     log.info(s"Retrieving Real-time quote symbols from collection $mongoCollection (modified since $lastModified)...")
-    mongoActor ! Find(
+    mongoReader ! Find(
       recipient = transformer,
       name = mongoCollection,
       query = O("active" -> true) ++ ("exchange" $nin List("OTCBB", "OTHER_OTC")) ++
