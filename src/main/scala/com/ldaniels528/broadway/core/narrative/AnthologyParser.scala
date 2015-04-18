@@ -9,7 +9,7 @@ import com.ldaniels528.broadway.core.triggers.Trigger
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.core.util.XMLHelper._
 import com.ldaniels528.broadway.server.ServerConfig.HttpInfo
-import com.ldaniels528.trifecta.util.OptionHelper._
+import com.ldaniels528.commons.helpers.OptionHelper._
 
 import scala.util.{Failure, Success, Try}
 import scala.xml.{Node, XML}

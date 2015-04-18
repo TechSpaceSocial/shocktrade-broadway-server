@@ -13,7 +13,7 @@ import com.ldaniels528.broadway.core.resources.ReadableResource
 import com.ldaniels528.broadway.core.util.Counter
 import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.server.ServerConfig
-import com.ldaniels528.trifecta.util.StringHelper._
+import com.ldaniels528.commons.helpers.StringHelper._
 import com.shocktrade.datacenter.helpers.ConversionHelper._
 import org.joda.time.format.DateTimeFormat
 

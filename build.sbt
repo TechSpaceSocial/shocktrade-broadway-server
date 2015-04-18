@@ -50,7 +50,8 @@ Seq(sbtavro.SbtAvro.avroSettings: _*)
 
 // Shocktrade Dependencies
 libraryDependencies ++= Seq(
-  //  "com.ldaniels528" %% "broadway" % "0.8.0",
+  //  "com.ldaniels528" %% "broadway" % "0.9.0",
+  "com.ldaniels528" %% "commons-helpers" % "0.1.0",
   "com.ldaniels528" %% "shocktrade-services" % "0.3.0",
   "com.ldaniels528" %% "tabular" % "0.1.0",
   "com.ldaniels528" %% "trifecta" % "0.19.0"

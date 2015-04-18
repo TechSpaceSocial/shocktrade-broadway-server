@@ -1,5 +1,6 @@
 package com.shocktrade.datacenter.schedules
 
+import scala.concurrent.duration._
 import com.ldaniels528.broadway.core.triggers.schedules.Scheduling
 
 /**
@@ -10,7 +11,7 @@ case class PeriodicSchedule(id: String) extends Scheduling {
   private var lastCheckMillis: Long = 0L
 
   override def isEligible(eventTime: Long) = {
-    val isReady = lastCheckMillis == 0 || eventTime - lastCheckMillis >= 300000L
+    val isReady = lastCheckMillis == 0 || eventTime - lastCheckMillis >= 10.minutes.toMillis
     lastCheckMillis = System.currentTimeMillis()
     isReady
   }
