@@ -1,19 +1,19 @@
 package com.shocktrade.datacenter.narratives.securities.yahoo.csv
 
-import com.ldaniels528.broadway.core.actors.BroadwayActor.Implicits._
 import java.lang.{Double => JDouble, Long => JLong}
 import java.util.{Date, Properties}
 
 import com.ldaniels528.broadway.BroadwayNarrative
+import com.ldaniels528.broadway.core.actors.BroadwayActor.Implicits._
 import com.ldaniels528.broadway.core.actors.TransformingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor
 import com.ldaniels528.broadway.core.actors.kafka.KafkaConsumingActor._
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor
 import com.ldaniels528.broadway.core.actors.nosql.MongoDBActor.{Upsert, _}
 import com.ldaniels528.broadway.core.util.Counter
-import com.ldaniels528.broadway.core.util.PropertiesHelper._
 import com.ldaniels528.broadway.datasources.avro.AvroUtil._
 import com.ldaniels528.broadway.server.ServerConfig
+import com.ldaniels528.commons.helpers.PropertiesHelper._
 import com.mongodb.casbah.Imports.{DBObject => O, _}
 import com.shocktrade.avro.CSVQuoteRecord
 import com.shocktrade.datacenter.narratives.securities.StockQuoteSupport
@@ -76,7 +76,7 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
       val lastTrade = rec.asOpt[JDouble]("lastTrade")
       val high = rec.asOpt[JDouble]("high")
       val low = rec.asOpt[JDouble]("low")
-      val tradeDateTime = rec.asOpt[JLong]("tradeDateTime") map(new Date(_))
+      val tradeDateTime = rec.asOpt[JLong]("tradeDateTime") map (new Date(_))
 
       // build the document
       val doc = rec.toMongoDB(fieldNames) ++ O(
@@ -111,8 +111,8 @@ class YFCsvKafkaToDBNarrative(config: ServerConfig, id: String, props: Propertie
   private def updateNewSymbol(refObj: Option[Any]): Boolean = {
     refObj foreach { case rec: GenericRecord =>
       for {
-         newSymbol <- rec.asOpt[String] ("newSymbol")
-         oldSymbol <- rec.asOpt[String] ("symbol") // record.oldSymbol
+        newSymbol <- rec.asOpt[String]("newSymbol")
+        oldSymbol <- rec.asOpt[String]("symbol") // record.oldSymbol
       } {
         mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> oldSymbol), doc = O("symbol" -> oldSymbol))
         mongoWriter ! Upsert(transformer, mongoCollection, query = O("symbol" -> newSymbol), doc = $set("oldSymbol" -> oldSymbol))

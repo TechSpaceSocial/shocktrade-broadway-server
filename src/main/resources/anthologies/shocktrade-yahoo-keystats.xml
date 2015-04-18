@@ -45,7 +45,7 @@
 
     <trigger
             schedule-ref="PeriodicSchedule"
-            narrative-ref="YFKeyStatisticsSvcToKafkaNarrative"
+            narrative-ref="YFKeyStatisticsKafkaToDBNarrative"
             enabled="false" />
 
 </anthology>
